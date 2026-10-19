@@ -27,6 +27,10 @@ object PackExporter {
     suspend fun ensureTray(context: Context, repo: PackRepository, pack: StickerPack): StickerPack =
         withContext(Dispatchers.IO) {
             val first = repo.stickerFile(pack.id, pack.stickers.firstOrNull().orEmpty()) ?: return@withContext pack
+            val existing = pack.trayImage?.let { repo.stickerFile(pack.id, it) }
+            if (existing != null && existing.length() <= StickerCodec.MAX_ICON_BYTES &&
+                existing.lastModified() >= first.lastModified()
+            ) return@withContext pack
             val bitmap = BitmapFactory.decodeFile(first.path) ?: return@withContext pack
             val tray = StickerRenderer.renderTray(bitmap)
             bitmap.recycle()

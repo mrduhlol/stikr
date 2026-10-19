@@ -13,12 +13,15 @@ import com.stikr.app.export.PackExporter
 import com.stikr.app.render.StickerCodec
 import com.stikr.app.render.StickerRenderer
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 
 /** Everything the editor screen needs to draw itself. */
 data class EditorState(
@@ -52,8 +55,41 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
+    /** The pack being prepared for WhatsApp, or null. One export runs at a time. */
+    private val _exportingPackId = MutableStateFlow<String?>(null)
+    val exportingPackId: StateFlow<String?> = _exportingPackId.asStateFlow()
+
+    private val previewRequests = Channel<Unit>(Channel.CONFLATED)
+    private var imageRequest = 0L
+
     init {
         refresh()
+        viewModelScope.launch {
+            val renderer = StickerRenderer.PreviewCache()
+            try {
+                for (request in previewRequests) {
+                    // One worker and one pending request, even during a fast slider drag.
+                    delay(32)
+                    previewRequests.tryReceive()
+                    val state = _editor.value
+                    val subject = state?.subject
+                    if (state == null || subject == null || state.loading || state.saving) {
+                        renderer.clear()
+                        continue
+                    }
+                    val version = imageRequest
+                    val preview = withContext(Dispatchers.Default) { renderer.render(subject, state.style) }
+                    val current = _editor.value
+                    if (imageRequest == version && current?.subject === subject && current.style == state.style) {
+                        _editor.value = current.copy(preview = preview)
+                    } else {
+                        preview.recycle()
+                    }
+                }
+            } finally {
+                renderer.clear()
+            }
+        }
     }
 
     // --------------------------------------------------------------- packs
@@ -66,15 +102,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun createPack(name: String, onCreated: (StickerPack) -> Unit) {
         viewModelScope.launch {
-            val pack = withContext(Dispatchers.IO) { repo.createPack(name) }
+            val pack = storage { repo.createPack(name) }
             refresh()
-            onCreated(pack)
+            if (pack != null) onCreated(pack) else notify("Couldn't create the pack")
         }
     }
 
     fun renamePack(packId: String, name: String) {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { repo.renamePack(packId, name) }
+            if (storage { repo.renamePack(packId, name) } == null) notify("Couldn't rename the pack")
             refresh()
         }
     }
@@ -89,9 +125,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun deleteSticker(packId: String, fileName: String) {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { repo.deleteSticker(packId, fileName) }
+            val updated = storage { repo.deleteSticker(packId, fileName) }
             refresh()
-            notify("Sticker deleted")
+            notify(if (updated != null) "Sticker deleted" else "Couldn't delete the sticker")
         }
     }
 
@@ -106,20 +142,31 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // --------------------------------------------------------------- editor
 
     fun startEditor(packId: String) {
+        imageRequest++
         _editor.value = EditorState(packId = packId)
+        renderPreview()
     }
 
     fun closeEditor() {
+        imageRequest++
         _editor.value = null
+        renderPreview()
     }
 
     fun loadImage(uri: Uri) {
         val state = _editor.value ?: return
+        val request = ++imageRequest
         _editor.value = state.copy(loading = true, status = "Loading photo\u2026")
         viewModelScope.launch {
             val source = withContext(Dispatchers.IO) { ImageLoader.load(getApplication(), uri) }
+            if (request != imageRequest) {
+                source?.recycle()
+                return@launch
+            }
             if (source == null) {
                 _editor.value = _editor.value?.copy(loading = false, status = null)
+                // Style edits made while loading were skipped by the preview worker.
+                renderPreview()
                 notify("Couldn't read that photo")
                 return@launch
             }
@@ -129,6 +176,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 status = if (state.cutoutEnabled) "Cutting out the subject\u2026" else null,
             )
             val (subject, failed) = process(source, state.cutoutEnabled)
+            if (request != imageRequest) {
+                if (subject !== source) subject.recycle()
+                return@launch
+            }
             _editor.value = _editor.value?.copy(
                 subject = subject,
                 cutoutFailed = failed,
@@ -147,6 +198,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _editor.value = state.copy(cutoutEnabled = enabled)
             return
         }
+        val request = ++imageRequest
         _editor.value = state.copy(
             cutoutEnabled = enabled,
             loading = true,
@@ -154,6 +206,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         )
         viewModelScope.launch {
             val (subject, failed) = process(source, enabled)
+            if (request != imageRequest) {
+                if (subject !== source) subject.recycle()
+                return@launch
+            }
             _editor.value = _editor.value?.copy(
                 subject = subject,
                 cutoutFailed = failed,
@@ -165,22 +221,38 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun setStyle(style: StickerRenderer.Style) {
-        _editor.value = _editor.value?.copy(style = style)
+        val state = _editor.value ?: return
+        if (state.style == style || state.saving) return
+        _editor.value = state.copy(style = style)
         renderPreview()
     }
 
     fun saveSticker(onSaved: () -> Unit) {
         val state = _editor.value ?: return
-        val preview = state.preview ?: return
-        if (state.saving) return
+        val subject = state.subject ?: return
+        if (!state.ready) return
         _editor.value = state.copy(saving = true)
         viewModelScope.launch {
-            val bytes = withContext(Dispatchers.Default) { StickerCodec.encodeWebp(preview) }
-            val updated = withContext(Dispatchers.IO) { repo.addSticker(state.packId, bytes) }
-            _editor.value = null
+            // A debounced preview may still show the previous style. Save the current one.
+            val bytes = withContext(Dispatchers.Default) {
+                val sticker = StickerRenderer.render(subject, state.style)
+                try {
+                    StickerCodec.encodeWebp(sticker)
+                } finally {
+                    sticker.recycle()
+                }
+            }
+            val updated = storage { repo.addSticker(state.packId, bytes) }
+            if (updated == null) {
+                // Keep the photo and style so the user can retry.
+                _editor.value = _editor.value?.copy(saving = false)
+                notify("Couldn't save the sticker")
+                return@launch
+            }
+            closeEditor()
             refresh()
-            notify(if (updated != null) "Sticker saved" else "Couldn't save the sticker")
-            if (updated != null) onSaved()
+            notify("Sticker saved")
+            onSaved()
         }
     }
 
@@ -192,11 +264,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             notify("WhatsApp needs at least ${PackRepository.MIN_WHATSAPP_STICKERS} stickers in a pack")
             return
         }
+        if (_exportingPackId.value != null) return
+        _exportingPackId.value = packId
         viewModelScope.launch {
-            val prepared = withContext(Dispatchers.IO) { PackExporter.ensureTray(getApplication(), repo, pack) }
-            val launched = PackExporter.launchWhatsApp(getApplication(), prepared)
-            refresh()
-            if (!launched) notify("WhatsApp isn't installed \u2014 share a single sticker instead")
+            try {
+                val prepared = try {
+                    PackExporter.ensureTray(getApplication(), repo, pack)
+                } catch (_: IOException) {
+                    notify("Couldn't prepare the pack for WhatsApp")
+                    return@launch
+                }
+                val launched = PackExporter.launchWhatsApp(getApplication(), prepared)
+                refresh()
+                if (!launched) notify("WhatsApp isn't installed \u2014 share a single sticker instead")
+            } finally {
+                _exportingPackId.value = null
+            }
         }
     }
 
@@ -223,18 +306,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
 
-    private fun renderPreview() {
-        val state = _editor.value ?: return
-        val subject = state.subject ?: return
-        val style = state.style
-        viewModelScope.launch {
-            val preview = withContext(Dispatchers.Default) { StickerRenderer.render(subject, style) }
-            val current = _editor.value
-            if (current?.subject === subject && current.style == style) {
-                _editor.value = current.copy(preview = preview)
-            } else {
-                preview.recycle()
-            }
+    /** Runs a repository write off the main thread; null when storage fails (e.g. a full disk). */
+    private suspend fun <T> storage(block: () -> T): T? = withContext(Dispatchers.IO) {
+        try {
+            block()
+        } catch (_: IOException) {
+            null
         }
+    }
+
+    private fun renderPreview() {
+        previewRequests.trySend(Unit)
     }
 }

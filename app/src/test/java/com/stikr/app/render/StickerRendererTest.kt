@@ -147,6 +147,65 @@ class StickerRendererTest {
         assertEquals(100, StickerRenderer.trimTransparent(empty).width)
     }
 
+    @Test
+    fun cachedPreviewsMatchFullRendersAndInvalidate() {
+        val cache = StickerRenderer.PreviewCache()
+        val photo = samplePhoto()
+        val other = samplePhoto(900, 640)
+        val styles = listOf(
+            StickerRenderer.Style(caption = "hello"),
+            StickerRenderer.Style(caption = "changed", captionPosition = StickerRenderer.CaptionPosition.TOP),
+            StickerRenderer.Style(caption = "ink", captionColor = StickerRenderer.CaptionColor.INK),
+            StickerRenderer.Style(outline = 20, outlineColor = StickerRenderer.OutlineColor.INK),
+            StickerRenderer.Style(outline = 0),
+        )
+        for (subject in listOf(photo, other)) {
+            for (style in styles) {
+                val expected = StickerRenderer.render(subject, style)
+                val actual = cache.render(subject, style)
+                assertTrue("cached preview must match $style", expected.sameAs(actual))
+                expected.recycle()
+                actual.recycle()
+            }
+        }
+        // A caller may mutate a bitmap without changing its identity.
+        other.eraseColor(Color.RED)
+        val expected = StickerRenderer.render(other, styles.last())
+        val actual = cache.render(other, styles.last())
+        assertTrue(expected.sameAs(actual))
+        cache.clear()
+        assertTrue("clearing the cache must not recycle a displayed preview", !actual.isRecycled)
+        expected.recycle()
+        actual.recycle()
+        photo.recycle()
+        other.recycle()
+    }
+
+    @Test
+    fun measureCaptionPreviewReuse() {
+        val photo = samplePhoto()
+        val cache = StickerRenderer.PreviewCache()
+        val styles = (0 until 20).map { StickerRenderer.Style(caption = "caption $it") }
+        repeat(3) {
+            StickerRenderer.render(photo, styles.first()).recycle()
+            cache.render(photo, styles.first()).recycle()
+        }
+        val fullTimes = LongArray(3)
+        val cachedTimes = LongArray(3)
+        repeat(3) { round ->
+            var start = System.nanoTime()
+            styles.forEach { StickerRenderer.render(photo, it).recycle() }
+            fullTimes[round] = System.nanoTime() - start
+            start = System.nanoTime()
+            styles.forEach { cache.render(photo, it).recycle() }
+            cachedTimes[round] = System.nanoTime() - start
+        }
+        println("caption-preview: 20 renders, full median=${fullTimes.sorted()[1] / 1_000_000.0}ms, " +
+            "cached median=${cachedTimes.sorted()[1] / 1_000_000.0}ms")
+        cache.clear()
+        photo.recycle()
+    }
+
     private fun save(name: String, bitmap: Bitmap) {
         File(out, name).outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }

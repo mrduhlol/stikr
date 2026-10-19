@@ -48,6 +48,46 @@ object StickerRenderer {
     fun render(subject: Bitmap, style: Style): Bitmap {
         val out = Bitmap.createBitmap(SIZE, SIZE, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(out)
+        drawSubject(canvas, subject, style)
+        drawCaption(canvas, style)
+        return out
+    }
+
+    /** Single-worker editor cache. Returned bitmaps never alias the cached layer. */
+    class PreviewCache {
+        private var subject: Bitmap? = null
+        private var generation = -1
+        private var outline = -1
+        private var color: OutlineColor? = null
+        private var layer: Bitmap? = null
+
+        fun render(subject: Bitmap, style: Style): Bitmap {
+            val width = style.outline.coerceIn(0, MAX_OUTLINE)
+            if (this.subject !== subject || generation != subject.generationId ||
+                outline != width || color != style.outlineColor
+            ) {
+                clear()
+                layer = Bitmap.createBitmap(SIZE, SIZE, Bitmap.Config.ARGB_8888).also {
+                    drawSubject(Canvas(it), subject, style)
+                }
+                this.subject = subject
+                generation = subject.generationId
+                outline = width
+                color = style.outlineColor
+            }
+            val out = requireNotNull(layer).copy(Bitmap.Config.ARGB_8888, true)
+            drawCaption(Canvas(out), style)
+            return out
+        }
+
+        fun clear() {
+            layer?.recycle()
+            layer = null
+            subject = null
+        }
+    }
+
+    private fun drawSubject(canvas: Canvas, subject: Bitmap, style: Style) {
         val outline = style.outline.coerceIn(0, MAX_OUTLINE)
 
         val box = SIZE - 2f * (MARGIN + outline)
@@ -76,9 +116,6 @@ object StickerRenderer {
 
         canvas.drawBitmap(scaled, left, top, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
         if (scaled !== subject) scaled.recycle()
-
-        drawCaption(canvas, style)
-        return out
     }
 
     /** The 96x96 pack icon WhatsApp shows in the sticker tray. */

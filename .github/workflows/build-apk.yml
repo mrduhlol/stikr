@@ -6,6 +6,10 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
 permissions:
   contents: write
 
@@ -21,22 +25,42 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # NOTE: ubuntu-latest runners already ship with the Android SDK
-      # at $ANDROID_SDK_ROOT, so we do NOT use setup-android (it was failing).
-      # sdkmanager is NOT on PATH — use the full path.
-      - name: Accept licenses + install packages
-        run: |
-          SDKMGR="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-          "$SDKMGR" --version
-          yes | "$SDKMGR" --licenses > /dev/null || true
-          "$SDKMGR" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
 
-      - name: Build debug APK
-        # Debug builds are for testing only: each CI runner signs with its own
-        # throwaway debug key, so debug APKs can NEVER update each other
-        # (Android rejects it as "package conflicts with an existing package").
-        # Tagged releases below build + sign a proper release APK instead.
-        run: ./gradlew assembleDebug --stacktrace
+      # Hosted runners include the SDK. Only install packages when missing.
+      - name: Ensure required Android SDK packages
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          packages=()
+          [[ -x "$SDK_ROOT/platform-tools/adb" ]] || packages+=("platform-tools")
+          [[ -f "$SDK_ROOT/platforms/android-34/android.jar" ]] || packages+=("platforms;android-34")
+          [[ -x "$SDK_ROOT/build-tools/34.0.0/aapt2" ]] || packages+=("build-tools;34.0.0")
+          if (( ${#packages[@]} )); then
+            SDKMGR="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+            yes | "$SDKMGR" --licenses > /dev/null || true
+            "$SDKMGR" "${packages[@]}"
+          fi
+
+      # Build all required variants in one Gradle process. Tagged releases keep
+      # using the persistent repo signing key configured in app/build.gradle.kts.
+      - name: Build APKs and run unit tests
+        run: |
+          tasks=(assembleDebug testDebugUnitTest)
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            tasks+=(assembleRelease)
+          fi
+          ./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx1536m "${tasks[@]}" --stacktrace
+
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: |
+            app/build/reports/tests/testDebugUnitTest/
+            app/build/test-results/testDebugUnitTest/*.xml
+          if-no-files-found: ignore
 
       - name: Rename APK with version
         run: |
@@ -51,14 +75,6 @@ jobs:
         with:
           name: stikr
           path: app/build/outputs/apk/debug/stikr*.apk
-
-      # Tagged releases (v*) are what users install: assembleRelease signs them
-      # with the persistent repo keystore (see app/build.gradle.kts), so every
-      # version carries the same signature and installs cleanly over the
-      # previous one instead of "conflicts with an existing package".
-      - name: Build release APK
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: ./gradlew assembleRelease --stacktrace
 
       - name: Rename signed release APK
         if: startsWith(github.ref, 'refs/tags/v')

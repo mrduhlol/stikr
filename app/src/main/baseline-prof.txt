@@ -1,0 +1,14 @@
+# Hand-maintained startup paths; Compose supplies its own library profile.
+# Keep these scoped to launch and the home screen, not photo processing.
+Lcom/stikr/app/MainActivity;
+HSLcom/stikr/app/MainActivity;->onCreate(Landroid/os/Bundle;)V
+HSLcom/stikr/app/ComposableSingletons$MainActivityKt$*;->invoke(**)**
+Lcom/stikr/app/ui/MainViewModel;
+HSLcom/stikr/app/ui/MainViewModel;-><init>(Landroid/app/Application;)V
+Lcom/stikr/app/ui/StikrAppKt;
+HSLcom/stikr/app/ui/StikrAppKt;->StikrApp(**)**
+Lcom/stikr/app/ui/HomeScreenKt;
+HSLcom/stikr/app/ui/HomeScreenKt;->HomeScreen(**)**
+HSLcom/stikr/app/ui/HomeScreenKt;->EmptyHero(**)**
+Lcom/stikr/app/ui/theme/ThemeKt;
+HSLcom/stikr/app/ui/theme/ThemeKt;->StikrTheme(**)**

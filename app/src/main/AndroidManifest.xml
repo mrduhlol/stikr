@@ -19,12 +19,14 @@
             </intent-filter>
         </activity>
 
-        <!-- Serves packs to WhatsApp when it imports them. -->
+        <!-- Serves packs to WhatsApp when it imports them. WhatsApp holds the
+             read permission; other apps cannot query the packs. -->
         <provider
             android:name=".export.StickerPackContentProvider"
             android:authorities="${applicationId}.stickercontentprovider"
             android:enabled="true"
-            android:exported="true" />
+            android:exported="true"
+            android:readPermission="com.whatsapp.sticker.READ" />
 
         <!-- Shares single stickers as images through the share sheet. -->
         <provider

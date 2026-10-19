@@ -1,114 +1,177 @@
 # stikr
 
-**Current version: v0.1** — photos in, stickers out.
+**Photos in, stickers out.**
 
-Turn a photo into a sticker on your phone — cut out the subject, add an outline
-and a caption, then import the pack straight into WhatsApp or share a sticker
-anywhere. No account, no upload, no watermark.
+Turn a photo into a sticker on your phone. Cut out the subject, add an outline
+and a caption, then import a pack into WhatsApp or share a sticker anywhere.
+No account, no upload, no watermark.
 
-<p align="center">
-  <a href="https://github.com/mrduhlol/stikr/releases/latest/download/stikr.apk">
-    <img height="64" alt="Download stikr for Android" src="https://img.shields.io/badge/GET_STIKR_FOR_ANDROID-238636?style=for-the-badge&logo=android&logoColor=white" />
-  </a>
-  <br />
-  <sub>Tap the button on your phone — the APK installs straight from your files.</sub>
-  <br /><br />
-  <img alt="Latest release" src="https://img.shields.io/github/v/release/mrduhlol/stikr?style=flat-square&label=version&color=1F6FEB" />
-  <img alt="APK size" src="https://img.shields.io/badge/size-%7E7.9_MB-0D1117?style=flat-square" />
-  <img alt="Android" src="https://img.shields.io/badge/android-8.0%2B-39D353?style=flat-square" />
-  <img alt="License" src="https://img.shields.io/badge/free-no_account-8B949E?style=flat-square" />
-</p>
+![Android 8.0+](docs/site/assets/badge-android.svg)
+![On device](docs/site/assets/badge-local.svg)
+![No account](docs/site/assets/badge-free.svg)
 
-## Features
+**[DOWNLOAD APK ↓](https://github.com/mrduhlol/stikr/releases/latest/download/stikr.apk)**
+· **[READ THE DOCS ↗](https://mrduhlol.github.io/stikr/)**
+· [Releases](https://github.com/mrduhlol/stikr/releases)
 
-- **Auto cut-out, on device** — the subject is cut from the background by ML Kit
-  subject segmentation; the model is fetched once by Google Play services and
-  everything runs locally
-- **A real sticker look** — an outline (white or ink, adjustable thickness) and
-  an optional caption in four colours, top or bottom
-- **A sticker-book look** — cream paper, ink outlines, hard offset shadows and
-  pastel cards; heavy Anton display type; light and dark
-- **Packs** — create, rename, and delete packs; add and delete stickers
-- **Add to WhatsApp** — export a pack (3–30 stickers) through the standard
-  sticker-pack contract; stikr works with WhatsApp and WhatsApp Business
-- **Share a sticker** — send any sticker as a PNG through the normal share sheet
-- **Works offline** — no account, no sign-in, nothing is uploaded; cut-out needs
-  Google Play services, and everything else works without it
-- **Light and dark** — follows your phone's theme
+Current version **v0.1**. APK approximately **7.9 MB**. Free, for Android 8.0 and newer.
 
-## Install
+---
 
-1. Tap **DOWNLOAD APK** above on your phone
-2. Open the downloaded file
-3. Allow **Install unknown apps** when asked
-4. Tap **Install**
+## **What you get**
 
-Every release is signed with the same key
-(`keystore/release.p12`), so the next version installs straight over the one
-you have. If you previously sideloaded a debug build, uninstall it first —
-different signature, Android will refuse the update.
+| Your photo | Your sticker |
+| :--- | :--- |
+| **Cut out the subject** | ML Kit subject segmentation runs on device. Google Play services fetches the model once. If cut-out is unavailable, keep the full photo. |
+| **Add the sticker outline** | White or ink, with adjustable thickness. |
+| **Say something** | Optional caption in cream, ink, butter, or cherry, at the top or bottom. |
+| **Keep a pack** | Create, rename, and delete packs. Add and delete stickers. |
+| **Send it to WhatsApp** | Import a pack of 3–30 stickers through the standard sticker-pack contract. Works with WhatsApp and WhatsApp Business. |
+| **Share one anywhere** | Send a sticker as a PNG through Android's normal share sheet. |
+| **Keep it local** | No sign-in, uploads, analytics, or telemetry. Cut-out requires Google Play services; everything else works fully offline. |
+| **Light or dark** | The sticker-book look follows your phone's theme. |
 
-## Use
+Static stickers only. A tray-icon picker, multiple subjects, extra caption fonts,
+and emoji suggestions are not shipped. Photos come from the system photo picker;
+stikr does not ask for storage permission.
 
-1. Open **stikr** and tap **Make a sticker** (or create a pack first)
-2. Pick a photo — stikr cuts out the subject automatically
-3. Adjust the **outline**, add a **caption** if you like, then tap **Add to pack**
-4. Once a pack has 3 or more stickers, tap **Add to WhatsApp** to import it;
-   or use a sticker's menu to **Share** it as an image
+## **Install**
 
-## Design
+1. Tap **[DOWNLOAD APK](https://github.com/mrduhlol/stikr/releases/latest/download/stikr.apk)** on your phone.
+2. Open the downloaded file.
+3. Allow **Install unknown apps** when Android asks.
+4. Tap **Install**.
 
-![The three screens in light mode](docs/theme/screens-light.png)
+Every release uses the same signing key, `keystore/release.p12`, so the next
+release installs over the one you have. If you installed a debug build,
+uninstall it first. Android rejects updates with a different signature.
+Uninstalling removes local packs, so share stickers you want to keep first.
 
-The look is a sticker book: cream paper, 2 dp ink outlines, hard offset shadows
-(never blurred), pastel card fills, and one loud red accent. Headlines are set
-in Anton; the home slogan is drawn as a sticker itself — white fill, ink
-outline, hard ink shadow, accent word in red.
+[Installation and update details](https://mrduhlol.github.io/stikr/install.html)
 
-- `ui/theme/Theme.kt` — the palette (`NeoPalette`, exposed as `Neo.palette`),
-  Material 3 colour mapping, shapes, type scale. Pastel fills always carry
-  `onAccent` dark ink, so the look survives dark mode.
-- `ui/neo/Neo.kt` — the component kit: `neoFrame` (border + hard shadow),
-  `NeoCard`, `NeoButton`, `NeoIconButton`, `NeoChip`, `NeoTag`, `NeoDialog`,
-  `NeoTextField`, `StickerHeadline`, `NeoSnackbar`.
-- Font: Anton, bundled under the SIL Open Font License
-  (`licenses/anton-OFL.txt`).
-- App icon: the sticker "S" — a white mark with a peeled corner on purple
-  (`#723AF4`). Source: `docs/brand/logo.png`; the adaptive icon uses it as a
-  raster foreground (`res/mipmap-*/ic_launcher_foreground.png`) over the
-  purple background colour.
+## **Make a sticker**
 
-## Development
+1. Open **stikr** and tap **Make a sticker**, or create a pack first.
+2. Pick a photo. stikr cuts out the subject automatically when available.
+3. Adjust the **outline**, add a **caption** if you want, and tap
+   **Add to “*pack name*”**.
+4. With 3–30 stickers in a pack, tap **Add to WhatsApp** to import it.
+   To send one image, tap the sticker and choose **Share**.
 
-- Kotlin + Jetpack Compose (Material 3), minSdk 26, one module
-- Build and install from source:
+The cut-out model downloads on first use through Google Play services.
+When cut-out is unavailable, stikr falls back to the full photo with the toggle exposed.
 
-  ```bash
-  ./gradlew :app:assembleDebug
-  # then, with a phone connected:
-  adb install app/build/outputs/apk/debug/app-debug.apk
-  ```
+[Full how-to](https://mrduhlol.github.io/stikr/use.html) ·
+[Privacy details](https://mrduhlol.github.io/stikr/privacy.html)
 
-  Or open the project in Android Studio and press Run.
-- Releases: bump `versionName`, push a `v*` tag — the
-  `build-apk.yml` workflow builds and signs the APK with
-  `keystore/release.p12` and attaches `stikr.v<version>.apk` plus a stable
-  `stikr.apk` to the GitHub Release. Pushes to `main` only build a debug
-  APK for smoke testing, and debug builds cannot update each other (each
-  CI runner uses its own throwaway debug key) — install tagged releases.
-- `render/StickerRenderer.kt` draws the final 512x512 sticker: dilated
-  silhouette for the outline (white or ink), subject on top, caption last
-- `render/StickerCodec.kt` encodes WebP and walks the quality down until the
-  file fits WhatsApp's limits (100 KB per sticker, 50 KB per tray icon)
-- `editor/SubjectCutout.kt` wraps ML Kit subject segmentation in a suspend
-  function that returns null whenever cut-out is unavailable
-- `data/PackRepository.kt` stores packs as files + `pack.json` under the app's
-  private storage — no database
-- `export/StickerPackContentProvider.kt` implements WhatsApp's pack contract
-  (metadata + `stickers_asset` + `sticker_pack_icon`)
-- Visual review without a device:
-  - `./gradlew testDebugUnitTest` renders sample stickers to
-    `app/build/sticker-renders/` (Robolectric)
-  - `./gradlew testDebugUnitTest --tests "com.stikr.app.ui.ScreenRenderTest"`
-    renders whole screens — light and dark, dialogs included — to
-    `app/build/ui-renders/`; the committed copies live in `docs/theme/`
+## **Ink. Paper. Stickers.**
+
+![Sample stikr screens in light mode](docs/theme/screens-light.png)
+
+<details>
+<summary>See the dark theme</summary>
+
+![Sample stikr screens in dark mode](docs/theme/screens-dark.png)
+
+</details>
+
+Neo-brutalist sticker book: cream paper, **3 dp ink borders** on every
+framed surface, hard offset shadows with no blur (3, 5 and 8 dp) that buttons
+and cards press into, flat pastel cards and one red accent. Anton headlines,
+uppercase **Space Mono** labels, buttons and counters. The home slogan knocks
+STICKERS out of a tilted red slab. Purple, the app-mark colour, marks progress
+bars and keyboard focus. Dark mode inverts the print: near-black paper with
+cream ink and cream shadows, while the pastels keep their colours. The
+screenshots use sample stickers.
+
+| Paper | Ink | Butter | Cyan | Green | Pink | Red accent | Purple mark |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `#F1EDE7` | `#191715` | `#F8DFA0` | `#9EDDE6` | `#9CE4A4` | `#F3CDDA` | `#AE403E` | `#723AF4` |
+
+- [`ui/theme/Theme.kt`](app/src/main/java/com/stikr/app/ui/theme/Theme.kt)
+  defines `NeoPalette`, exposed as `Neo.palette`, Material 3 colour mapping and
+  the type scale. Pastel fills carry dark `onAccent` ink in both themes.
+  [`ui/theme/Tokens.kt`](app/src/main/java/com/stikr/app/ui/theme/Tokens.kt)
+  holds the border, shadow, spacing, shape and motion tokens.
+- [`ui/neo/`](app/src/main/java/com/stikr/app/ui/neo/) is the component kit:
+  `neoFrame` for borders and pressable hard shadows, `NeoCard`, `NeoButton`,
+  `NeoOutlinedButton`, `NeoIconButton`, `NeoSegmented`, `NeoSwitch`,
+  `NeoSlider`, `NeoSwatch`, `NeoTag`, `NeoSectionHeader`, `NeoDialog`,
+  `NeoTextField`, `NeoSnackbar`, `NeoEmptyState`, `NeoProgressBar`,
+  `NeoMeter`, `StickerHeadline` and `NeoWordmark`, plus press haptics.
+- Anton and Space Mono are bundled under the SIL Open Font License
+  ([Anton](licenses/anton-OFL.txt), [Space Mono](licenses/space-mono-OFL.txt)).
+- The app icon is a white sticker “S” with a peeled corner on purple `#723AF4`.
+  Source: [`docs/brand/logo.png`](docs/brand/logo.png). The adaptive icon uses a
+  raster foreground at `res/mipmap-*/ic_launcher_foreground.png` over purple.
+
+[Design system reference](https://mrduhlol.github.io/stikr/design.html)
+
+## **Build it**
+
+Kotlin + Jetpack Compose with Material 3. One module, minSdk 26.
+Use JDK 17 and Android SDK platform 34 with build tools 34.0.0, as in CI.
+
+```bash
+./gradlew :app:assembleDebug
+# With a phone connected and USB debugging enabled:
+adb install app/build/outputs/apk/debug/app-debug.apk
+```
+
+Or open the project in Android Studio and press **Run**.
+
+| Source under `app/src/main/java/com/stikr/app/` | Job |
+| :--- | :--- |
+| `render/StickerRenderer.kt` | Draws a 512×512 sticker: dilated silhouette for the white or ink outline, subject on top, caption last. |
+| `render/StickerCodec.kt` | Encodes WebP, reducing quality until the file fits WhatsApp's limits of 100 KB per sticker and 50 KB per tray icon. |
+| `editor/SubjectCutout.kt` | Wraps ML Kit segmentation in a suspend function. Returns null when cut-out is unavailable. |
+| `data/PackRepository.kt` | Stores packs as files and `pack.json` in private app storage. No database. Caches parsed `pack.json` until the file changes. |
+| `export/StickerPackContentProvider.kt` | Implements WhatsApp's sticker provider contract: `metadata`, `stickers/<pack>`, and `stickers_asset/<pack>/<file>`, readable only with `com.whatsapp.sticker.READ`. |
+| `ui/MainViewModel.kt` | Editor and pack state. Slider drags are conflated into one preview render at a time, reusing the outlined subject layer when only the caption changes. |
+| `ui/StickerImage.kt` | Decodes sticker thumbnails off the main thread at their displayed size, into a shared 8 MB memory cache. |
+
+### Test and inspect renders
+
+```bash
+./gradlew testDebugUnitTest
+./gradlew testDebugUnitTest --tests "com.stikr.app.ui.ScreenRenderTest"
+```
+
+Robolectric renders sample stickers to `app/build/sticker-renders/`.
+The screen test renders whole screens in light and dark, including dialogs,
+empty, loading, saving and exporting states, to `app/build/ui-renders/`.
+`python3 docs/theme/make-screens.py` (needs Pillow) turns those renders into the
+committed `docs/theme/screens-*.png`; copy them to `docs/site/assets/` too.
+
+### Build speed and startup
+
+`gradle.properties` turns on the configuration cache, the build cache and
+parallel execution, so repeat builds skip configuration and reuse task
+outputs. CI caches Gradle with `gradle/actions/setup-gradle`, runs the unit
+tests on pushes to `main` and release tags, and uploads their reports. Release APKs bundle a baseline
+profile for launch and the home screen (`app/src/main/baseline-prof.txt`),
+which `androidx.profileinstaller` installs on sideloaded phones. Compose
+preview tooling ships in debug builds only.
+
+### Release
+
+Bump `versionName` and push a `v*` tag. The
+[`build-apk.yml`](.github/workflows/build-apk.yml) workflow builds and signs
+with `keystore/release.p12`, then attaches `stikr.v<version>.apk` and the stable
+`stikr.apk` to the GitHub Release.
+
+Pushes to `main` build a debug APK for smoke testing. Each CI runner uses a
+throwaway debug key, so debug builds cannot update one another. Install tagged releases.
+
+[Development guide](https://mrduhlol.github.io/stikr/develop.html)
+
+## **Contributing**
+
+Open an issue with a reproducible bug or a concrete proposal. For code changes,
+keep the scope small, run the relevant tests, and include light and dark renders
+for UI changes. Read [CONTRIBUTING.md](CONTRIBUTING.md) and [PRODUCT.md](PRODUCT.md)
+before adding a feature.
+
+The [docs site](docs/site/index.html) is static HTML and one CSS file, with local
+images and Anton. Preview it with `python3 -m http.server 8000 --directory docs/site`.
+The [Pages workflow](.github/workflows/pages.yml) deploys it on pushes to `main`. Select **GitHub Actions** as the repository's Pages source.

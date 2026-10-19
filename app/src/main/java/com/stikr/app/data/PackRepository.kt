@@ -3,6 +3,10 @@ package com.stikr.app.data
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.nio.file.attribute.BasicFileAttributes
+import java.nio.file.attribute.FileTime
 import kotlin.random.Random
 
 /**
@@ -19,12 +23,14 @@ import kotlin.random.Random
 class PackRepository(private val root: File) {
 
     private val lock = Any()
+    private data class Stamp(val modified: FileTime, val size: Long, val fileKey: Any?)
+    private data class CachedPack(val stamp: Stamp, val pack: StickerPack)
+    private val metadata = mutableMapOf<String, CachedPack>()
 
     fun listPacks(): List<StickerPack> = synchronized(lock) {
-        root.listFiles { file -> file.isDirectory }
-            ?.mapNotNull { readPack(it) }
-            ?.sortedByDescending { it.createdAt }
-            ?: emptyList()
+        val dirs = root.listFiles { file -> file.isDirectory }.orEmpty()
+        metadata.keys.retainAll(dirs.map { it.name }.toSet())
+        dirs.mapNotNull { readPack(it) }.sortedByDescending { it.createdAt }
     }
 
     fun getPack(id: String): StickerPack? = synchronized(lock) { readPack(File(root, id)) }
@@ -48,6 +54,7 @@ class PackRepository(private val root: File) {
     }
 
     fun deletePack(id: String): Boolean = synchronized(lock) {
+        metadata.remove(id)
         File(root, id).deleteRecursively()
     }
 
@@ -66,7 +73,8 @@ class PackRepository(private val root: File) {
         File(root, packId).resolve(fileName).delete()
         pack.copy(
             stickers = pack.stickers - fileName,
-            trayImage = pack.trayImage?.takeUnless { it == fileName },
+            // The generated tray represents the first sticker.
+            trayImage = pack.trayImage?.takeUnless { it == fileName || pack.stickers.firstOrNull() == fileName },
         ).also { writePack(it) }
     }
 
@@ -83,33 +91,52 @@ class PackRepository(private val root: File) {
      */
     fun stickerFile(packId: String, fileName: String): File? = synchronized(lock) {
         if (fileName.isBlank() || fileName.contains('/') || fileName.contains("..")) return null
-        val pack = readPack(File(root, packId)) ?: return null
+        val pack = readPack(File(root, packId), filterMissingFiles = false) ?: return null
         if (!pack.stickers.contains(fileName) && pack.trayImage != fileName) return null
         File(root, packId).resolve(fileName).takeIf { it.isFile }
     }
 
     // ------------------------------------------------------------- internals
 
-    private fun readPack(dir: File): StickerPack? {
+    private fun stamp(file: File): Stamp {
+        val attributes = Files.readAttributes(file.toPath(), BasicFileAttributes::class.java)
+        return Stamp(attributes.lastModifiedTime(), attributes.size(), attributes.fileKey())
+    }
+
+    private fun readPack(dir: File, filterMissingFiles: Boolean = true): StickerPack? {
         val meta = File(dir, PACK_FILE)
-        if (!meta.isFile) return null
+        if (!meta.isFile) {
+            metadata.remove(dir.name)
+            return null
+        }
         return try {
-            val json = JSONObject(meta.readText())
-            val stickerNames = json.optJSONArray("stickers")?.let { array ->
-                (0 until array.length())
-                    .mapNotNull { index -> array.optString(index).takeIf { it.isNotEmpty() } }
-                    .filter { File(dir, it).isFile }
-            } ?: emptyList()
-            StickerPack(
-                id = json.getString("id"),
-                name = json.optString("name", "Untitled pack"),
-                author = json.optString("author", DEFAULT_AUTHOR),
-                createdAt = json.optLong("createdAt", 0L),
-                stickers = stickerNames,
-                trayImage = json.optString("trayImage")
-                    .takeIf { it.isNotEmpty() && File(dir, it).isFile },
-            )
+            // Atomic replacement changes fileKey even for same-length writes in one clock tick.
+            val version = stamp(meta)
+            val cached = metadata[dir.name]?.takeIf { it.stamp == version }
+            val pack = cached?.pack ?: run {
+                val json = JSONObject(meta.readText())
+                StickerPack(
+                    id = json.getString("id"),
+                    name = json.optString("name", "Untitled pack"),
+                    author = json.optString("author", DEFAULT_AUTHOR),
+                    createdAt = json.optLong("createdAt", 0L),
+                    stickers = json.optJSONArray("stickers")?.let { array ->
+                        (0 until array.length()).mapNotNull { index ->
+                            array.optString(index).takeIf { it.isNotEmpty() }
+                        }
+                    } ?: emptyList(),
+                    trayImage = json.optString("trayImage").takeIf { it.isNotEmpty() },
+                ).also { metadata[dir.name] = CachedPack(version, it) }
+            }
+            // Serving one file only needs to stat that file, not every asset in the pack.
+            if (!filterMissingFiles) return pack
+            // Files may disappear independently of metadata, including through another instance.
+            val stickers = pack.stickers.filter { File(dir, it).isFile }
+            val tray = pack.trayImage?.takeIf { File(dir, it).isFile }
+            if (stickers == pack.stickers && tray == pack.trayImage) pack
+            else pack.copy(stickers = stickers, trayImage = tray)
         } catch (_: Exception) {
+            metadata.remove(dir.name)
             null // an unreadable pack.json is skipped rather than crashing the list
         }
     }
@@ -126,10 +153,8 @@ class PackRepository(private val root: File) {
         val target = File(dir, PACK_FILE)
         val temp = File(dir, "$PACK_FILE.tmp")
         temp.writeText(json.toString())
-        if (!temp.renameTo(target)) {
-            target.writeText(json.toString())
-            temp.delete()
-        }
+        Files.move(temp.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        metadata[pack.id] = CachedPack(stamp(target), pack)
     }
 
     private fun newPackId(): String =

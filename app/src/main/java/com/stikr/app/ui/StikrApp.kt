@@ -1,8 +1,19 @@
 package com.stikr.app.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.SnackbarHost
@@ -21,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.stikr.app.ui.neo.Neo
 import com.stikr.app.ui.neo.NeoSnackbar
+import com.stikr.app.ui.theme.NeoMotion
 
 private enum class Screen { HOME, PACK, EDITOR }
 
@@ -29,6 +41,7 @@ fun StikrApp(viewModel: MainViewModel = viewModel()) {
     val packs by viewModel.packs.collectAsStateWithLifecycle()
     val editor by viewModel.editor.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val exportingPackId by viewModel.exportingPackId.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     var screen by rememberSaveable { mutableStateOf(Screen.HOME.name) }
@@ -67,46 +80,62 @@ fun StikrApp(viewModel: MainViewModel = viewModel()) {
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Neo.palette.paper)) {
-        when (screen) {
-            Screen.HOME.name -> HomeScreen(
-                packs = packs,
-                onOpenPack = ::openPack,
-                onCreatePack = { name -> viewModel.createPack(name) { openPack(it.id) } },
-                onMakeSticker = ::makeSticker,
-            )
+        AnimatedContent(
+            targetState = screen,
+            transitionSpec = {
+                // Short, hard slides: deeper screens come in from the right.
+                val forward = Screen.valueOf(targetState).ordinal > Screen.valueOf(initialState).ordinal
+                val direction = if (forward) 1 else -1
+                (
+                    slideInHorizontally(tween(NeoMotion.screen)) { width -> direction * width / 6 } +
+                        fadeIn(tween(NeoMotion.screen / 2))
+                    ) togetherWith fadeOut(tween(NeoMotion.screen / 2))
+            },
+            label = "screen",
+        ) { target ->
+            when (target) {
+                Screen.HOME.name -> HomeScreen(
+                    packs = packs,
+                    onOpenPack = ::openPack,
+                    onCreatePack = { name -> viewModel.createPack(name) { openPack(it.id) } },
+                    onMakeSticker = ::makeSticker,
+                )
 
-            Screen.PACK.name -> {
-                val pack = packs.firstOrNull { it.id == packId }
-                if (pack == null) {
-                    LaunchedEffect(packId) { screen = Screen.HOME.name }
-                } else {
-                    PackScreen(
-                        pack = pack,
-                        onBack = { screen = Screen.HOME.name },
-                        onRename = { viewModel.renamePack(pack.id, it) },
-                        onDelete = { viewModel.deletePack(pack.id) { screen = Screen.HOME.name } },
-                        onAddSticker = { openEditor(pack.id) },
-                        onDeleteSticker = { viewModel.deleteSticker(pack.id, it) },
-                        onShareSticker = { viewModel.shareSticker(pack.id, it) },
-                        onExport = { viewModel.exportToWhatsApp(pack.id) },
-                    )
+                Screen.PACK.name -> {
+                    val pack = packs.firstOrNull { it.id == packId }
+                    if (pack == null) {
+                        if (screen == Screen.PACK.name) LaunchedEffect(packId) { screen = Screen.HOME.name }
+                    } else {
+                        PackScreen(
+                            pack = pack,
+                            onBack = { screen = Screen.HOME.name },
+                            onRename = { viewModel.renamePack(pack.id, it) },
+                            onDelete = { viewModel.deletePack(pack.id) { screen = Screen.HOME.name } },
+                            onAddSticker = { openEditor(pack.id) },
+                            onDeleteSticker = { viewModel.deleteSticker(pack.id, it) },
+                            onShareSticker = { viewModel.shareSticker(pack.id, it) },
+                            onExport = { viewModel.exportToWhatsApp(pack.id) },
+                            exporting = exportingPackId == pack.id,
+                        )
+                    }
                 }
-            }
 
-            Screen.EDITOR.name -> {
-                val state = editor
-                if (state == null) {
-                    LaunchedEffect(Unit) { screen = Screen.PACK.name }
-                } else {
-                    EditorScreen(
-                        state = state,
-                        packName = packs.firstOrNull { it.id == state.packId }?.name.orEmpty(),
-                        onPick = viewModel::loadImage,
-                        onCutout = viewModel::setCutout,
-                        onStyle = viewModel::setStyle,
-                        onSave = { viewModel.saveSticker { leaveEditor() } },
-                        onBack = { leaveEditor() },
-                    )
+                Screen.EDITOR.name -> {
+                    val state = editor
+                    if (state == null) {
+                        // Also hit while the editor animates out after closing.
+                        if (screen == Screen.EDITOR.name) LaunchedEffect(Unit) { screen = Screen.PACK.name }
+                    } else {
+                        EditorScreen(
+                            state = state,
+                            packName = packs.firstOrNull { it.id == state.packId }?.name.orEmpty(),
+                            onPick = viewModel::loadImage,
+                            onCutout = viewModel::setCutout,
+                            onStyle = viewModel::setStyle,
+                            onSave = { viewModel.saveSticker { leaveEditor() } },
+                            onBack = { leaveEditor() },
+                        )
+                    }
                 }
             }
         }
@@ -115,13 +144,15 @@ fun StikrApp(viewModel: MainViewModel = viewModel()) {
             hostState = snackbarHostState,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(16.dp),
+                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
+                .padding(start = 16.dp, end = 16.dp, bottom = 96.dp),
         ) { data ->
             NeoSnackbar(data)
         }
     }
 
-    BackHandler(enabled = screen != Screen.HOME.name) {
-        if (screen == Screen.EDITOR.name) leaveEditor() else screen = Screen.HOME.name
+    // The editor owns its back press: it asks before dropping a picked photo.
+    BackHandler(enabled = screen == Screen.PACK.name) {
+        screen = Screen.HOME.name
     }
 }

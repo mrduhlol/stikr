@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Build the Kotlin and Jetpack Compose Android app, run tests and screen renders, and understand the tagged release flow.">
+<meta name="color-scheme" content="light dark">
+<title>Develop stikr | stikr</title>
+<link rel="icon" href="assets/logo.png" type="image/png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><a class="brand" href="index.html"><img src="assets/logo.png" alt="" width="44" height="44">stikr</a><nav aria-label="Main navigation"><a href="index.html">Home</a><a href="install.html">Install</a><a href="use.html">Use</a><a href="design.html">Design</a><a href="develop.html" aria-current="page">Develop</a><a href="privacy.html">Privacy</a></nav></header>
+<main id="main" tabindex="-1">
+<div class="page-head"><span class="label">04 / Build it yourself</span><h1>Open the source.</h1><p>Kotlin, Jetpack Compose, and Material 3. One Android module. Minimum SDK 26.</p></div>
+<div class="prose"><section><h2>Build and install</h2><p>Use JDK 17 and an Android SDK with platform 34 and build tools 34.0.0, matching the APK workflow. Clone the repository and open its root in a terminal.</p><pre><code>git clone https://github.com/mrduhlol/stikr.git
+cd stikr
+./gradlew :app:assembleDebug
+# Connect an Android phone with USB debugging enabled.
+adb install app/build/outputs/apk/debug/app-debug.apk</code></pre><p>You can also open the project in Android Studio and press <strong>Run</strong>.</p></section>
+<section><h2>Run tests and render screens</h2><pre><code>./gradlew testDebugUnitTest
+./gradlew testDebugUnitTest --tests "com.stikr.app.ui.ScreenRenderTest"</code></pre><p>Robolectric renders sample stickers into <code>app/build/sticker-renders/</code>. The screen test renders whole screens in light and dark, including dialogs, into <code>app/build/ui-renders/</code>. Committed screenshots live in <code>docs/theme/</code>; <code>python3 docs/theme/make-screens.py</code> (needs Pillow) rebuilds them from those renders.</p></section>
+<section><h2>Find the code</h2><div class="table-wrap"><table><caption>Paths under app/src/main/java/com/stikr/app/</caption><thead><tr><th scope="col">File</th><th scope="col">Responsibility</th></tr></thead><tbody>
+<tr><td><code>render/StickerRenderer.kt</code></td><td>Draws the final 512×512 sticker: dilated silhouette outline, subject, then caption.</td></tr><tr><td><code>render/StickerCodec.kt</code></td><td>Encodes WebP and reduces quality until it fits WhatsApp's limits: 100 KB per sticker and 50 KB per tray icon.</td></tr><tr><td><code>editor/SubjectCutout.kt</code></td><td>Wraps ML Kit subject segmentation in a suspend function. Returns null when cut-out is unavailable.</td></tr><tr><td><code>data/PackRepository.kt</code></td><td>Stores files and pack.json in private app storage. No database. Parsed pack.json is cached until the file changes.</td></tr><tr><td><code>export/StickerPackContentProvider.kt</code></td><td>Implements WhatsApp's sticker provider contract: <code>metadata</code>, <code>stickers/&lt;pack&gt;</code>, and <code>stickers_asset/&lt;pack&gt;/&lt;file&gt;</code>, readable only with <code>com.whatsapp.sticker.READ</code>.</td></tr><tr><td><code>ui/MainViewModel.kt</code></td><td>Editor and pack state. Slider drags are conflated into one preview render at a time, reusing the outlined subject layer when only the caption changes.</td></tr><tr><td><code>ui/StickerImage.kt</code></td><td>Decodes sticker thumbnails off the main thread at their displayed size, into a shared 8 MB memory cache.</td></tr><tr><td><code>ui/theme/Theme.kt</code> and <code>ui/neo/Neo.kt</code></td><td>Define the palette, typography, and shared <a href="design.html">component kit</a>.</td></tr></tbody></table></div></section>
+<section><h2>Build speed and startup</h2><p><code>gradle.properties</code> turns on the configuration cache, the build cache, and parallel execution, so repeat builds skip configuration and reuse task outputs. CI caches Gradle with <code>gradle/actions/setup-gradle</code>, runs the unit tests on pushes to <code>main</code> and release tags, and uploads their reports.</p><p>Release APKs bundle a baseline profile for launch and the home screen, <code>app/src/main/baseline-prof.txt</code>, which <code>androidx.profileinstaller</code> installs on sideloaded phones. Compose preview tooling ships in debug builds only.</p></section>
+<section><h2>Release a signed APK</h2><p>Maintainers bump <code>versionName</code> and push a <code>v*</code> tag. The existing <code>build-apk.yml</code> workflow builds and signs with <code>keystore/release.p12</code>. It attaches <code>stikr.v&lt;version&gt;.apk</code> and the stable <code>stikr.apk</code> to the GitHub Release.</p><p>Pushes to main build a debug APK for smoke testing. Each CI runner uses a throwaway debug signing key, so those builds cannot update one another. Tagged releases use the persistent signing key and can update an installed release.</p></section>
+<section><h2>Work on these docs</h2><p>The site is plain HTML and one CSS file in <code>docs/site/</code>. No build step, JavaScript, external fonts, or CDN is needed.</p><pre><code>python3 -m http.server 8000 --directory docs/site</code></pre><p>Open <code>http://localhost:8000</code>. Check narrow screens, keyboard navigation, and light and dark modes. After regenerating screenshots, copy <code>docs/theme/screens-light.png</code> and <code>docs/theme/screens-dark.png</code> to <code>docs/site/assets/</code>.</p><p><code>pages.yml</code> deploys only <code>docs/site/</code> on pushes to main. A repository administrator must select <strong>GitHub Actions</strong> as the Pages source in repository settings.</p><p><a href="https://github.com/mrduhlol/stikr/blob/main/CONTRIBUTING.md">Read the contribution guide ↗</a></p></section></div>
+</main>
+<footer><p>stikr / Photos in, stickers out.</p><div><a href="privacy.html">Privacy</a><a href="https://github.com/mrduhlol/stikr">Source on GitHub</a><a href="licenses/anton-OFL.txt">Anton font license</a></div></footer>
+</body>
+</html>

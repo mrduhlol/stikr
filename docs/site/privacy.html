@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="stikr processes photos on your phone and uploads nothing. No accounts, cloud storage, analytics, or telemetry.">
+<meta name="color-scheme" content="light dark">
+<title>Privacy | stikr</title>
+<link rel="icon" href="assets/logo.png" type="image/png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><a class="brand" href="index.html"><img src="assets/logo.png" alt="" width="44" height="44">stikr</a><nav aria-label="Main navigation"><a href="index.html">Home</a><a href="install.html">Install</a><a href="use.html">Use</a><a href="design.html">Design</a><a href="develop.html">Develop</a><a href="privacy.html" aria-current="page">Privacy</a></nav></header>
+<main id="main" tabindex="-1">
+<div class="page-head"><span class="label">05 / Your photos stay yours</span><h1>Nothing leaves<br>the phone.</h1><p>stikr does not upload your photos or stickers. No account, no cloud, no analytics, no telemetry.</p></div>
+<div class="prose"><section><h2>Photos and packs stay local</h2><p>You choose photos with Android's system photo picker. stikr does not ask for storage permission. The app processes the selected photo on device and saves packs as files in its private storage.</p><p>There is no stikr server receiving your photos. No sign-in or watermark is required.</p></section>
+<section><h2>The cut-out model</h2><p>Automatic cut-out uses ML Kit subject segmentation on your phone. Google Play services fetches the model on first use. That model download needs a connection; photo processing happens locally.</p><p>Cut-out requires Google Play services. If it is unavailable, stikr keeps the full photo. Everything else works fully offline.</p></section>
+<section><h2>You choose when to share</h2><p>When you tap <strong>Add to WhatsApp</strong>, stikr provides your chosen sticker pack to WhatsApp or WhatsApp Business through Android's sticker-pack contract.</p><p>When you choose <strong>Share</strong>, Android's share sheet sends a PNG to the app you select. These actions share content at your request. The destination app handles what happens next.</p></section>
+<section><h2>About this site</h2><p>This documentation is a static site hosted on GitHub Pages. It contains no JavaScript, analytics, third-party fonts, or tracking pixels. Its images and Anton font are served with the site.</p><p><a href="https://github.com/mrduhlol/stikr">Inspect the source on GitHub ↗</a></p></section></div>
+</main>
+<footer><p>stikr / Photos in, stickers out.</p><div><a href="privacy.html">Privacy</a><a href="https://github.com/mrduhlol/stikr">Source on GitHub</a><a href="licenses/anton-OFL.txt">Anton font license</a></div></footer>
+</body>
+</html>

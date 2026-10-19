@@ -3,6 +3,7 @@ package com.stikr.app.data
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -71,6 +72,47 @@ class PackRepositoryTest {
         File(broken, PackRepository.PACK_FILE).writeText("{ not json !!")
 
         assertTrue(repo().listPacks().isEmpty())
+    }
+
+    @Test
+    fun unchangedMetadataIsReusedAndOtherInstancesInvalidateIt() {
+        val writer = repo()
+        val pack = writer.createPack("Before")
+        writer.addSticker(pack.id, byteArrayOf(5), "stk_a.webp")
+        val reader = repo()
+        val first = reader.getPack(pack.id)
+        assertSame(first, reader.getPack(pack.id))
+        // Same-length rename without a sleep must be visible to the provider's repository.
+        writer.renamePack(pack.id, "After!")
+        assertEquals("After!", reader.getPack(pack.id)?.name)
+        writer.deleteSticker(pack.id, "stk_a.webp")
+        assertEquals(emptyList<String>(), reader.getPack(pack.id)?.stickers)
+        writer.deletePack(pack.id)
+        assertNull(reader.getPack(pack.id))
+        assertTrue(reader.listPacks().isEmpty())
+    }
+
+    @Test
+    fun cachedMetadataStillFiltersMissingFiles() {
+        val repository = repo()
+        val pack = repository.createPack("Files")
+        repository.addSticker(pack.id, byteArrayOf(5), "stk_a.webp")
+        val file = repository.stickerFile(pack.id, "stk_a.webp")!!
+        file.delete()
+        assertEquals(emptyList<String>(), repository.getPack(pack.id)?.stickers)
+        file.writeBytes(byteArrayOf(6))
+        assertEquals(listOf("stk_a.webp"), repository.getPack(pack.id)?.stickers)
+    }
+
+    @Test
+    fun deletingFirstStickerInvalidatesGeneratedTray() {
+        val repository = repo()
+        val pack = repository.createPack("Tray")
+        repository.addSticker(pack.id, byteArrayOf(1), "stk_a.webp")
+        repository.addSticker(pack.id, byteArrayOf(2), "stk_b.webp")
+        repository.setTrayImage(pack.id, byteArrayOf(3))
+        assertNotNull(repository.deleteSticker(pack.id, "stk_b.webp")?.trayImage)
+        assertNull(repository.deleteSticker(pack.id, "stk_a.webp")?.trayImage)
     }
 
     @Test

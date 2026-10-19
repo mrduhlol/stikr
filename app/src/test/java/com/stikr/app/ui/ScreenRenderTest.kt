@@ -124,7 +124,7 @@ class ScreenRenderTest {
     @Test
     fun editorBottomLight() {
         editorScreen(dark = false)
-        capture("editor-light-bottom", scrollTo = "Position")
+        capture("editor-light-bottom", scrollTo = "BOTTOM")
     }
 
     @Test
@@ -136,17 +136,20 @@ class ScreenRenderTest {
     @Test
     fun editorBottomDark() {
         editorScreen(dark = true)
-        capture("editor-dark-bottom", scrollTo = "Position")
+        capture("editor-dark-bottom", scrollTo = "BOTTOM")
     }
 
-    private fun editorScreen(dark: Boolean) {
-        val sticker = sampleSticker(0xFFFFAB5E.toInt())
-        val state = EditorState(
-            packId = "pack-1",
-            source = sticker,
-            subject = sticker,
-            preview = sticker,
-            style = StickerRenderer.Style(outline = 10, caption = "hello", captionColor = StickerRenderer.CaptionColor.CHERRY),
+    private fun editorScreen(dark: Boolean, transform: (EditorState) -> EditorState = { it }) {
+        val subject = sampleSubject(0xFFFFAB5E.toInt())
+        val style = StickerRenderer.Style(outline = 14, caption = "hello", captionColor = StickerRenderer.CaptionColor.CHERRY)
+        val state = transform(
+            EditorState(
+                packId = "pack-1",
+                source = subject,
+                subject = subject,
+                preview = StickerRenderer.render(subject, style),
+                style = style,
+            ),
         )
         compose.setContent {
             StikrTheme(darkTheme = dark) {
@@ -203,13 +206,146 @@ class ScreenRenderTest {
             }
         }
         settle()
+        captureDialog("dialog-light")
+    }
 
+    @Test
+    fun newPackDialogDark() {
+        compose.setContent {
+            StikrTheme(darkTheme = true) {
+                NameDialog(title = "Rename pack", confirmLabel = "Save", initial = "Faces", onDismiss = {}, onConfirm = {})
+            }
+        }
+        settle()
+        captureDialog("dialog-dark")
+    }
+
+    @Test
+    fun confirmDialogLight() = confirmDialog(dark = false, name = "dialog-confirm-light")
+
+    @Test
+    fun confirmDialogDark() = confirmDialog(dark = true, name = "dialog-confirm-dark")
+
+    private fun confirmDialog(dark: Boolean, name: String) {
+        compose.setContent {
+            StikrTheme(darkTheme = dark) {
+                ConfirmDialog(
+                    kicker = "Can\u2019t be undone",
+                    title = "Delete this pack?",
+                    body = "\u201CFaces\u201D and its 5 stickers will be removed from stikr. " +
+                        "Copies already imported into WhatsApp are not affected.",
+                    confirmLabel = "Delete",
+                    dismissLabel = "Cancel",
+                    onDismiss = {},
+                    onConfirm = {},
+                )
+            }
+        }
+        settle()
+        captureDialog(name)
+    }
+
+    @Test
+    fun homeEmptyDark() {
+        compose.setContent {
+            StikrTheme(darkTheme = true) {
+                HomeScreen(packs = emptyList(), onOpenPack = {}, onCreatePack = {}, onMakeSticker = {})
+            }
+        }
+        settle()
+        capture("home-empty-dark")
+    }
+
+    @Test
+    fun packEmptyLight() {
+        packScreen(dark = false, pack = packFixture("pack-empty", "Empty", count = 0))
+        capture("pack-empty-light")
+    }
+
+    @Test
+    fun packEmptyDark() {
+        packScreen(dark = true, pack = packFixture("pack-empty", "Empty", count = 0))
+        capture("pack-empty-dark")
+    }
+
+    @Test
+    fun packScreenWhatsAppDark() {
+        installWhatsApp()
+        packScreen(dark = true, pack = packFixture("pack-1", "My stickers"))
+        capture("pack-whatsapp-dark")
+    }
+
+    @Test
+    fun packFewWhatsAppDark() {
+        installWhatsApp()
+        packScreen(dark = true, pack = packFixture("pack-few", "Dogs", count = 2))
+        capture("pack-few-whatsapp-dark")
+    }
+
+    @Test
+    fun packExportingLight() {
+        installWhatsApp()
+        packScreen(dark = false, pack = packFixture("pack-1", "My stickers"), exporting = true)
+        capture("pack-exporting-light")
+    }
+
+    @Test
+    fun editorEmptyLight() {
+        editorScreen(dark = false) { EditorState(packId = "pack-1") }
+        capture("editor-empty-light")
+    }
+
+    @Test
+    fun editorLoadingLight() {
+        editorScreen(dark = false) { it.copy(loading = true, status = "Cutting out the subject\u2026") }
+        capture("editor-loading-light")
+    }
+
+    @Test
+    fun editorLoadingDark() {
+        editorScreen(dark = true) { it.copy(loading = true, status = "Cutting out the subject\u2026") }
+        capture("editor-loading-dark")
+    }
+
+    @Test
+    fun editorSavingDark() {
+        editorScreen(dark = true) { it.copy(saving = true) }
+        capture("editor-saving-dark")
+    }
+
+    private fun installWhatsApp() {
+        val whatsApp = android.content.pm.PackageInfo().apply { packageName = "com.whatsapp" }
+        org.robolectric.Shadows.shadowOf(context.packageManager).installPackage(whatsApp)
+    }
+
+    private fun packScreen(dark: Boolean, pack: StickerPack, exporting: Boolean = false) {
+        compose.setContent {
+            StikrTheme(darkTheme = dark) {
+                PackScreen(
+                    pack = pack,
+                    onBack = {},
+                    onRename = {},
+                    onDelete = {},
+                    onAddSticker = {},
+                    onDeleteSticker = {},
+                    onShareSticker = {},
+                    onExport = {},
+                    exporting = exporting,
+                )
+            }
+        }
+        settle()
+    }
+
+    private fun captureDialog(name: String) {
         val dialog = org.robolectric.shadows.ShadowDialog.getLatestDialog()
         val view = dialog.window?.decorView
         if (view != null && view.width > 0 && view.height > 0) {
             val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+            // The decor view is transparent; lay the dialog over a dimmed screen colour.
+            bitmap.eraseColor(Color.rgb(90, 88, 84))
             view.draw(Canvas(bitmap))
-            File(out, "dialog-light.png").outputStream().use {
+            File(out, "$name.png").outputStream().use {
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
             }
         }
@@ -217,22 +353,22 @@ class ScreenRenderTest {
 
     // ------------------------------------------------------------- fixtures
 
-    private fun sampleSticker(circle: Int): Bitmap {
-        val photo = Bitmap.createBitmap(600, 800, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(photo)
-        canvas.drawColor(Color.rgb(242, 240, 248))
+    /** A cut-out subject on transparency, the way ML Kit hands it to the renderer. */
+    private fun sampleSubject(circle: Int): Bitmap {
+        val subject = Bitmap.createBitmap(600, 760, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(subject)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        paint.color = circle
-        canvas.drawCircle(300f, 260f, 170f, paint)
         paint.color = Color.rgb(66, 62, 58)
-        canvas.drawRoundRect(150f, 480f, 450f, 700f, 60f, 60f, paint)
-        return StickerRenderer.render(
-            photo,
-            StickerRenderer.Style(outline = 10, caption = "hi"),
-        )
+        canvas.drawRoundRect(110f, 440f, 490f, 760f, 150f, 150f, paint)
+        paint.color = circle
+        canvas.drawCircle(300f, 240f, 200f, paint)
+        return subject
     }
 
-    private fun packFixture(id: String = "pack-1", name: String = "My stickers"): StickerPack {
+    private fun sampleSticker(circle: Int, caption: String = ""): Bitmap =
+        StickerRenderer.render(sampleSubject(circle), StickerRenderer.Style(outline = 14, caption = caption))
+
+    private fun packFixture(id: String = "pack-1", name: String = "My stickers", count: Int = 5): StickerPack {
         val dir = File(context.filesDir, "packs/$id").apply { mkdirs() }
         val circles = listOf(
             0xFFFFAB5E.toInt(),
@@ -241,9 +377,10 @@ class ScreenRenderTest {
             0xFFF07E9C.toInt(),
             0xFFD6C05C.toInt(),
         )
-        val names = circles.mapIndexed { index, circle ->
+        val captions = listOf("hi!", "", "lol", "", "yes")
+        val names = circles.take(count).mapIndexed { index, circle ->
             val fileName = "s${index + 1}.webp"
-            File(dir, fileName).writeBytes(StickerCodec.encodeWebp(sampleSticker(circle)))
+            File(dir, fileName).writeBytes(StickerCodec.encodeWebp(sampleSticker(circle, captions[index])))
             fileName
         }
         return StickerPack(
@@ -259,7 +396,7 @@ class ScreenRenderTest {
 
     /** Lets async work (sticker files, produceState) land before capturing. */
     private fun settle() {
-        repeat(3) {
+        repeat(5) {
             Thread.sleep(200)
             compose.waitForIdle()
             compose.mainClock.advanceTimeBy(32)
