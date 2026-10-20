@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.stikr.app.data.PackRepository
 import com.stikr.app.ui.neo.Neo
 import com.stikr.app.ui.neo.NeoSnackbar
 import com.stikr.app.ui.theme.NeoMotion
@@ -42,6 +43,8 @@ fun StikrApp(viewModel: MainViewModel = viewModel()) {
     val editor by viewModel.editor.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val exportingPackId by viewModel.exportingPackId.collectAsStateWithLifecycle()
+    val batch by viewModel.batch.collectAsStateWithLifecycle()
+    val showTour by viewModel.showTour.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     var screen by rememberSaveable { mutableStateOf(Screen.HOME.name) }
@@ -80,61 +83,87 @@ fun StikrApp(viewModel: MainViewModel = viewModel()) {
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Neo.palette.paper)) {
-        AnimatedContent(
-            targetState = screen,
-            transitionSpec = {
-                // Short, hard slides: deeper screens come in from the right.
-                val forward = Screen.valueOf(targetState).ordinal > Screen.valueOf(initialState).ordinal
-                val direction = if (forward) 1 else -1
-                (
-                    slideInHorizontally(tween(NeoMotion.screen)) { width -> direction * width / 6 } +
-                        fadeIn(tween(NeoMotion.screen / 2))
-                    ) togetherWith fadeOut(tween(NeoMotion.screen / 2))
-            },
-            label = "screen",
-        ) { target ->
-            when (target) {
-                Screen.HOME.name -> HomeScreen(
-                    packs = packs,
-                    onOpenPack = ::openPack,
-                    onCreatePack = { name -> viewModel.createPack(name) { openPack(it.id) } },
-                    onMakeSticker = ::makeSticker,
-                )
+        val currentBatch = batch
+        when {
+            // Overlays take the whole screen and are never animated: the tour
+            // first, then a batch run, then the ordinary navigation stack.
+            showTour -> TourOverlay(onDone = viewModel::completeTour)
 
-                Screen.PACK.name -> {
-                    val pack = packs.firstOrNull { it.id == packId }
-                    if (pack == null) {
-                        if (screen == Screen.PACK.name) LaunchedEffect(packId) { screen = Screen.HOME.name }
-                    } else {
-                        PackScreen(
-                            pack = pack,
-                            onBack = { screen = Screen.HOME.name },
-                            onRename = { viewModel.renamePack(pack.id, it) },
-                            onDelete = { viewModel.deletePack(pack.id) { screen = Screen.HOME.name } },
-                            onAddSticker = { openEditor(pack.id) },
-                            onDeleteSticker = { viewModel.deleteSticker(pack.id, it) },
-                            onShareSticker = { viewModel.shareSticker(pack.id, it) },
-                            onExport = { viewModel.exportToWhatsApp(pack.id) },
-                            exporting = exportingPackId == pack.id,
-                        )
+            currentBatch != null -> BatchScreen(
+                state = currentBatch,
+                onCancel = viewModel::cancelBatch,
+                onDone = viewModel::dismissBatch,
+                onOpenPack = { id ->
+                    viewModel.dismissBatch()
+                    openPack(id)
+                },
+            )
+
+            else -> AnimatedContent(
+                targetState = screen,
+                transitionSpec = {
+                    // Short, hard slides: deeper screens come in from the right.
+                    val forward = Screen.valueOf(targetState).ordinal > Screen.valueOf(initialState).ordinal
+                    val direction = if (forward) 1 else -1
+                    (
+                        slideInHorizontally(tween(NeoMotion.screen)) { width -> direction * width / 6 } +
+                            fadeIn(tween(NeoMotion.screen / 2))
+                        ) togetherWith fadeOut(tween(NeoMotion.screen / 2))
+                },
+                label = "screen",
+            ) { target ->
+                when (target) {
+                    Screen.HOME.name -> HomeScreen(
+                        packs = packs,
+                        onOpenPack = ::openPack,
+                        onCreatePack = { name -> viewModel.createPack(name) { openPack(it.id) } },
+                        onMakeSticker = ::makeSticker,
+                        onStartBatch = { title, author, uris -> viewModel.startBatch(title, author, uris) },
+                        onShowTour = viewModel::replayTour,
+                    )
+
+                    Screen.PACK.name -> {
+                        val pack = packs.firstOrNull { it.id == packId }
+                        if (pack == null) {
+                            if (screen == Screen.PACK.name) LaunchedEffect(packId) { screen = Screen.HOME.name }
+                        } else {
+                            PackScreen(
+                                pack = pack,
+                                onBack = { screen = Screen.HOME.name },
+                                onRename = { viewModel.renamePack(pack.id, it) },
+                                onDelete = { viewModel.deletePack(pack.id) { screen = Screen.HOME.name } },
+                                onAddSticker = { openEditor(pack.id) },
+                                onDeleteSticker = { viewModel.deleteSticker(pack.id, it) },
+                                onShareSticker = { viewModel.shareSticker(pack.id, it) },
+                                onExport = { viewModel.exportToWhatsApp(pack.id) },
+                                exporting = exportingPackId == pack.id,
+                            )
+                        }
                     }
-                }
 
-                Screen.EDITOR.name -> {
-                    val state = editor
-                    if (state == null) {
-                        // Also hit while the editor animates out after closing.
-                        if (screen == Screen.EDITOR.name) LaunchedEffect(Unit) { screen = Screen.PACK.name }
-                    } else {
-                        EditorScreen(
-                            state = state,
-                            packName = packs.firstOrNull { it.id == state.packId }?.name.orEmpty(),
-                            onPick = viewModel::loadImage,
-                            onCutout = viewModel::setCutout,
-                            onStyle = viewModel::setStyle,
-                            onSave = { viewModel.saveSticker { leaveEditor() } },
-                            onBack = { leaveEditor() },
-                        )
+                    Screen.EDITOR.name -> {
+                        val state = editor
+                        if (state == null) {
+                            // Also hit while the editor animates out after closing.
+                            if (screen == Screen.EDITOR.name) LaunchedEffect(Unit) { screen = Screen.PACK.name }
+                        } else {
+                            val pack = packs.firstOrNull { it.id == state.packId }
+                            EditorScreen(
+                                state = state,
+                                packName = pack?.name.orEmpty(),
+                                onPick = viewModel::loadImage,
+                                onCutout = viewModel::setCutout,
+                                onStyle = viewModel::setStyle,
+                                onSave = { viewModel.saveSticker { leaveEditor() } },
+                                onSaveNew = {
+                                    viewModel.saveStickerToNewPack { newPack -> openPack(newPack.id) }
+                                },
+                                // A full pack can't take another sticker; the editor
+                                // offers a fresh one instead.
+                                packFull = (pack?.stickerCount ?: 0) >= PackRepository.MAX_WHATSAPP_STICKERS,
+                                onBack = { leaveEditor() },
+                            )
+                        }
                     }
                 }
             }
@@ -151,8 +180,13 @@ fun StikrApp(viewModel: MainViewModel = viewModel()) {
         }
     }
 
-    // The editor owns its back press: it asks before dropping a picked photo.
-    BackHandler(enabled = screen == Screen.PACK.name) {
+    // The editor owns its own back press — it asks before dropping a picked
+    // photo — so this one only handles the pack screen. Compose gives the
+    // press to the most recently composed *enabled* handler, and this one is
+    // composed after the content: keep it disabled while an overlay is
+    // showing, so TourOverlay (swallow) and BatchScreen (stop confirm / done)
+    // keep their own back behaviour.
+    BackHandler(enabled = screen == Screen.PACK.name && !showTour && batch == null) {
         screen = Screen.HOME.name
     }
 }

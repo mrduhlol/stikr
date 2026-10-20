@@ -1,5 +1,9 @@
 package com.stikr.app.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +33,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -63,6 +68,7 @@ import com.stikr.app.ui.neo.NeoButton
 import com.stikr.app.ui.neo.NeoCard
 import com.stikr.app.ui.neo.NeoDialog
 import com.stikr.app.ui.neo.NeoHaptic
+import com.stikr.app.ui.neo.NeoIconButton
 import com.stikr.app.ui.neo.NeoOutlinedButton
 import com.stikr.app.ui.neo.NeoSectionHeader
 import com.stikr.app.ui.neo.NeoTag
@@ -82,10 +88,22 @@ fun HomeScreen(
     onOpenPack: (String) -> Unit,
     onCreatePack: (String) -> Unit,
     onMakeSticker: () -> Unit,
+    onStartBatch: (String, String, List<Uri>) -> Unit,
+    onShowTour: () -> Unit,
 ) {
     val palette = Neo.palette
     var showCreate by rememberSaveable { mutableStateOf(false) }
+    var showCreateBatch by rememberSaveable { mutableStateOf(false) }
+    // The picker answers after the dialog is gone, so the names it needs are
+    // kept here, not in the dialog's own state.
+    var pendingTitle by rememberSaveable { mutableStateOf("") }
+    var pendingAuthor by rememberSaveable { mutableStateOf(PackRepository.DEFAULT_AUTHOR) }
     val bars = WindowInsets.systemBars.asPaddingValues()
+
+    // As many photos as the user likes: the picker decides, not us.
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
+        if (uris.isNotEmpty()) onStartBatch(pendingTitle, pendingAuthor, uris)
+    }
 
     Box(
         modifier = Modifier
@@ -106,7 +124,16 @@ fun HomeScreen(
         ) {
             item(span = { GridItemSpan(maxLineSpan) }, key = "wordmark", contentType = "wordmark") {
                 NeoWordmark(
-                    trailing = { NeoTag("on-device", fill = palette.green, rotation = 3f) },
+                    trailing = {
+                        NeoTag("on-device", fill = palette.green, rotation = 3f)
+                        Spacer(Modifier.width(NeoDimens.gapSmall))
+                        // The tour, on demand: the same one a first run shows.
+                        NeoIconButton(
+                            onClick = onShowTour,
+                            icon = Icons.Default.Info,
+                            contentDescription = "About stikr",
+                        )
+                    },
                 )
             }
 
@@ -114,6 +141,7 @@ fun HomeScreen(
                 item(span = { GridItemSpan(maxLineSpan) }, key = "hero", contentType = "hero") {
                     EmptyHero(
                         onMakeSticker = onMakeSticker,
+                        onNewBatch = { showCreateBatch = true },
                         onCreatePack = { showCreate = true },
                     )
                 }
@@ -123,6 +151,14 @@ fun HomeScreen(
                         title = "Your packs",
                         meta = if (packs.size == 1) "1 pack" else "${packs.size} packs",
                         modifier = Modifier.padding(top = 8.dp),
+                        trailing = {
+                            NeoOutlinedButton(
+                                text = "New batch",
+                                onClick = { showCreateBatch = true },
+                                shadow = NeoDimens.shadowSmall,
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                            )
+                        },
                     )
                 }
                 itemsIndexed(packs, key = { _, pack -> pack.id }, contentType = { _, _ -> "pack" }) { index, pack ->
@@ -169,6 +205,20 @@ fun HomeScreen(
             },
         )
     }
+
+    if (showCreateBatch) {
+        CreateBatchDialog(
+            onDismiss = { showCreateBatch = false },
+            onConfirm = { title, author ->
+                // The picker's answer lands after this dialog is gone, so the
+                // names wait here for it.
+                showCreateBatch = false
+                pendingTitle = title
+                pendingAuthor = author
+                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+        )
+    }
 }
 
 /** Packs cycle through the pastel card colours. */
@@ -184,7 +234,7 @@ private fun packFill(index: Int): Color {
 }
 
 @Composable
-private fun EmptyHero(onMakeSticker: () -> Unit, onCreatePack: () -> Unit) {
+private fun EmptyHero(onMakeSticker: () -> Unit, onNewBatch: () -> Unit, onCreatePack: () -> Unit) {
     val palette = Neo.palette
     Column(modifier = Modifier.fillMaxWidth()) {
         Spacer(Modifier.height(12.dp))
@@ -210,6 +260,14 @@ private fun EmptyHero(onMakeSticker: () -> Unit, onCreatePack: () -> Unit) {
             haptic = NeoHaptic.Confirm,
             shadow = NeoDimens.shadowLarge - 2.dp,
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 18.dp),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(10.dp))
+        NeoOutlinedButton(
+            text = "New batch",
+            onClick = onNewBatch,
+            shadow = NeoDimens.shadowSmall,
+            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(Modifier.height(10.dp))
@@ -290,6 +348,7 @@ private fun PackCard(
     val count = pack.stickerCount
     val missing = (PackRepository.MIN_WHATSAPP_STICKERS - count).coerceAtLeast(0)
     val countLabel = if (count == 1) "1 sticker" else "$count stickers"
+    val full = count >= PackRepository.MAX_WHATSAPP_STICKERS
 
     NeoCard(
         modifier = Modifier.fillMaxWidth(),
@@ -309,6 +368,12 @@ private fun PackCard(
             )
             if (showNew) {
                 NeoTag("new", fill = palette.card, rotation = 6f)
+            }
+            if (full) {
+                // A full pack can't take another sticker: the editor offers a
+                // new one instead.
+                if (showNew) Spacer(Modifier.width(6.dp))
+                NeoTag("full", fill = palette.card, rotation = -6f)
             }
         }
         Text(
