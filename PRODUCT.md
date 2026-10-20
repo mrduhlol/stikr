@@ -43,7 +43,8 @@ segmentation (model fetched by Google Play services on first use; falls back to
 the full photo when unavailable, with the toggle exposed); outline in white or
 ink with adjustable thickness; optional caption in four colours (cream, ink,
 butter, cherry), top or bottom; packs with create, rename, delete; add and
-delete stickers; export a pack to WhatsApp (3–30 stickers per pack); share a
+delete stickers; export a pack to WhatsApp (3–30 stickers per pack) from a
+pinned Add to WhatsApp bar at the bottom of the pack screen; share a
 single sticker as a PNG through the share sheet; light and dark theme in the
 sticker-book look (cream paper, ink outlines, hard shadows, pastel cards,
 Anton display type).
