@@ -49,12 +49,24 @@ fun StikrApp(viewModel: MainViewModel = viewModel()) {
 
     var screen by rememberSaveable { mutableStateOf(Screen.HOME.name) }
     var packId by rememberSaveable { mutableStateOf<String?>(null) }
+    // The view model closes the editor before it hands back the pack it just
+    // made, so the editor's own dismissal must not send the user back to the
+    // pack we came from. This flag is alive only while that hand-over is
+    // pending.
+    var savingToNewPack by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(message) {
         message?.let { text ->
             snackbarHostState.showSnackbar(text)
             viewModel.consumeMessage()
         }
+    }
+
+    // A save into a new pack that failed keeps the editor open and stops the
+    // spinner, and the new pack never arrives: let the editor go again.
+    LaunchedEffect(editor) {
+        val state = editor
+        if (savingToNewPack && state != null && !state.saving) savingToNewPack = false
     }
 
     fun openPack(id: String) {
@@ -64,11 +76,13 @@ fun StikrApp(viewModel: MainViewModel = viewModel()) {
 
     fun openEditor(id: String) {
         packId = id
+        savingToNewPack = false // a fresh editor session starts clean
         viewModel.startEditor(id)
         screen = Screen.EDITOR.name
     }
 
     fun leaveEditor() {
+        savingToNewPack = false
         viewModel.closeEditor()
         screen = Screen.PACK.name
     }
@@ -145,7 +159,11 @@ fun StikrApp(viewModel: MainViewModel = viewModel()) {
                         val state = editor
                         if (state == null) {
                             // Also hit while the editor animates out after closing.
-                            if (screen == Screen.EDITOR.name) LaunchedEffect(Unit) { screen = Screen.PACK.name }
+                            // While a new pack is being made, the dismissal waits
+                            // for it instead of jumping back to the old pack.
+                            if (screen == Screen.EDITOR.name && !savingToNewPack) {
+                                LaunchedEffect(Unit) { screen = Screen.PACK.name }
+                            }
                         } else {
                             val pack = packs.firstOrNull { it.id == state.packId }
                             EditorScreen(
@@ -156,7 +174,11 @@ fun StikrApp(viewModel: MainViewModel = viewModel()) {
                                 onStyle = viewModel::setStyle,
                                 onSave = { viewModel.saveSticker { leaveEditor() } },
                                 onSaveNew = {
-                                    viewModel.saveStickerToNewPack { newPack -> openPack(newPack.id) }
+                                    savingToNewPack = true
+                                    viewModel.saveStickerToNewPack { newPack ->
+                                        savingToNewPack = false
+                                        openPack(newPack.id)
+                                    }
                                 },
                                 // A full pack can't take another sticker; the editor
                                 // offers a fresh one instead.

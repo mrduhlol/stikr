@@ -87,8 +87,8 @@ fun EditorScreen(
     onCutout: (Boolean) -> Unit,
     onStyle: (StickerRenderer.Style) -> Unit,
     onSave: () -> Unit,
-    onSaveNew: () -> Unit,
     packFull: Boolean,
+    onSaveNew: () -> Unit,
     onBack: () -> Unit,
 ) {
     val palette = Neo.palette
