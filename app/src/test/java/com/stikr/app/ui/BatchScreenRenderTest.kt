@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import com.stikr.app.data.PackRepository
+import com.stikr.app.data.StickerPack
 import com.stikr.app.ui.theme.StikrTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -123,15 +124,18 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
     }
 
     private fun showDoneScreen(dark: Boolean, name: String) {
-        val state = doneState()
+        showDone(doneState(), dark)
+        compose.onNodeWithText("2 packs created", ignoreCase = true).assertIsDisplayed()
+        capture(name)
+    }
+
+    private fun showDone(state: BatchState, dark: Boolean = false) {
         compose.setContent {
             StikrTheme(darkTheme = dark) {
                 BatchScreen(state = state, onCancel = {}, onDone = {}, onOpenPack = {})
             }
         }
         settle()
-        compose.onNodeWithText("2 packs created", ignoreCase = true).assertIsDisplayed()
-        capture(name)
     }
 
     @Test
@@ -165,6 +169,40 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
         compose.activity.onBackPressedDispatcher.onBackPressed()
         compose.waitForIdle()
         assertTrue(done)
+    }
+
+    // --------------------------------------------------- the done screen's copy
+
+    @Test
+    fun onePackCreated() {
+        showDone(doneState(created = listOf(packFixture("pack-b1", "Beach trip 1", 30))))
+        compose.onNodeWithText("1 pack created", ignoreCase = true).assertIsDisplayed()
+        compose.onNodeWithText(SUMMARY_WITH_SUFFIXES, ignoreCase = true).assertIsDisplayed()
+        compose.onNodeWithText("Beach trip 1", ignoreCase = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun noStickersMade() {
+        showDone(doneState(created = emptyList()))
+        compose.onNodeWithText("No stickers were made", ignoreCase = true).assertIsDisplayed()
+        // An empty run has nothing to report: no summary, no pack rows.
+        compose.onNodeWithText("photos became stickers", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Beach trip 1", ignoreCase = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun summaryHasNoSuffixesWhenNothingWentWrong() {
+        showDone(doneState(fellBack = 0, failed = 0))
+        // An exact match: a stray " · " suffix would fail this.
+        compose.onNodeWithText("28 of 100 photos became stickers", ignoreCase = true).assertIsDisplayed()
+        compose.onNodeWithText("kept as full photos instead", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("couldn't be read", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun summaryCountsFallbacksAndFailures() {
+        showDone(doneState(fellBack = 3, failed = 2))
+        compose.onNodeWithText(SUMMARY_WITH_SUFFIXES, ignoreCase = true).assertIsDisplayed()
     }
 
     // -------------------------------------------------------- the stop confirm
@@ -230,19 +268,31 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
         failed = 2,
     )
 
-    private fun doneState() = BatchState(
+    private fun doneState(
+        created: List<StickerPack> = listOf(
+            packFixture("pack-b1", "Beach trip 1", 30),
+            packFixture("pack-b2", "Beach trip 2", 10),
+        ),
+        saved: Int = 28,
+        fellBack: Int = 3,
+        failed: Int = 2,
+    ) = BatchState(
         title = "Beach trip",
         author = "stikr",
         total = 100,
         expectedPacks = 4,
         processed = 30,
-        saved = 28,
-        fellBack = 3,
-        failed = 2,
-        created = listOf(
-            packFixture("pack-b1", "Beach trip 1", 30),
-            packFixture("pack-b2", "Beach trip 2", 10),
-        ),
+        saved = saved,
+        fellBack = fellBack,
+        failed = failed,
+        created = created,
         phase = BatchPhase.DONE,
     )
+
+    private companion object {
+        /** The pinned summary line, both suffixes and all. */
+        const val SUMMARY_WITH_SUFFIXES =
+            "28 of 100 photos became stickers \u00B7 3 kept as full photos instead " +
+                "\u00B7 2 couldn't be read"
+    }
 }

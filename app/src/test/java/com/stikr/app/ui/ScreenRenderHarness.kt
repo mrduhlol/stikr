@@ -8,8 +8,6 @@ import android.graphics.Paint
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import com.stikr.app.data.StickerPack
 import com.stikr.app.render.StickerCodec
@@ -84,11 +82,7 @@ abstract class ScreenRenderHarness {
      * captureToImage() needs PixelCopy, which Robolectric doesn't implement, so
      * the content view is drawn straight onto a bitmap instead.
      */
-    protected fun capture(name: String, scrollTo: String? = null) {
-        if (scrollTo != null) {
-            compose.onNodeWithText(scrollTo).performScrollTo()
-            settle()
-        }
+    protected fun capture(name: String) {
         val view: View = compose.activity.findViewById(android.R.id.content)
         val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
         view.draw(Canvas(bitmap))

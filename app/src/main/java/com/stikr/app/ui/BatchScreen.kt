@@ -195,6 +195,9 @@ private fun DoneScreen(state: BatchState, onDone: () -> Unit, onOpenPack: (Strin
                 .padding(horizontal = NeoDimens.gutter),
         ) {
             Spacer(Modifier.height(26.dp))
+            // The kit sets every headline in caps (NeoSectionHeader, NeoEmptyState,
+            // NeoDialog all do), so consumers of these strings have to match them
+            // case-insensitively.
             Text(
                 text = when (state.created.size) {
                     0 -> "No stickers were made"
