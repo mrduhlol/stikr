@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
@@ -38,7 +39,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
@@ -57,11 +57,9 @@ import com.stikr.app.ui.neo.NeoDialog
 import com.stikr.app.ui.neo.NeoEmptyState
 import com.stikr.app.ui.neo.NeoHaptic
 import com.stikr.app.ui.neo.NeoIconButton
-import com.stikr.app.ui.neo.NeoMeter
 import com.stikr.app.ui.neo.NeoOutlinedButton
 import com.stikr.app.ui.neo.NeoProgressBar
 import com.stikr.app.ui.neo.NeoSectionHeader
-import com.stikr.app.ui.neo.NeoTag
 import com.stikr.app.ui.neo.NeoTone
 import com.stikr.app.ui.neo.neoFrame
 import com.stikr.app.ui.theme.NeoDimens
@@ -93,71 +91,71 @@ fun PackScreen(
     val full = count >= PackRepository.MAX_WHATSAPP_STICKERS
     val bars = WindowInsets.systemBars.asPaddingValues()
 
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
-        modifier = Modifier
-            .fillMaxSize()
-            .background(palette.paper),
-        contentPadding = PaddingValues(
-            start = NeoDimens.gutter,
-            end = NeoDimens.gutter + NeoDimens.shadowSmall,
-            top = bars.calculateTopPadding() + 8.dp,
-            bottom = bars.calculateBottomPadding() + 40.dp,
-        ),
-        horizontalArrangement = Arrangement.spacedBy(NeoDimens.gapSmall + NeoDimens.shadowSmall),
-        verticalArrangement = Arrangement.spacedBy(NeoDimens.gapSmall + NeoDimens.shadowSmall),
-    ) {
-        item(span = { GridItemSpan(maxLineSpan) }, key = "top", contentType = "top") {
-            TopBar(
-                pack = pack,
-                onBack = onBack,
-                onRename = { showRename = true },
-                onDelete = { showDelete = true },
-            )
-        }
-
-        if (count == 0) {
-            item(span = { GridItemSpan(maxLineSpan) }, key = "empty", contentType = "empty") {
-                NeoEmptyState(
-                    title = "No stickers yet",
-                    body = "Pick a photo — stikr cuts the subject out right on your phone.",
-                    action = "Add first sticker",
-                    onAction = onAddSticker,
-                    modifier = Modifier.padding(top = 8.dp),
-                    art = { EmptyArt() },
+    Box(modifier = Modifier.fillMaxSize().background(palette.paper)) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = NeoDimens.gutter,
+                end = NeoDimens.gutter + NeoDimens.shadowSmall,
+                top = bars.calculateTopPadding() + 8.dp,
+                // Room for the pinned export band, so the last row scrolls clear of it.
+                bottom = bars.calculateBottomPadding() + 136.dp,
+            ),
+            horizontalArrangement = Arrangement.spacedBy(NeoDimens.gapSmall + NeoDimens.shadowSmall),
+            verticalArrangement = Arrangement.spacedBy(NeoDimens.gapSmall + NeoDimens.shadowSmall),
+        ) {
+            item(span = { GridItemSpan(maxLineSpan) }, key = "top", contentType = "top") {
+                TopBar(
+                    pack = pack,
+                    onBack = onBack,
+                    onRename = { showRename = true },
+                    onDelete = { showDelete = true },
                 )
             }
-            return@LazyVerticalGrid
-        }
 
-        item(span = { GridItemSpan(maxLineSpan) }, key = "export", contentType = "export") {
-            ExportCard(
-                count = count,
-                whatsAppInstalled = whatsAppInstalled,
-                exporting = exporting,
-                onExport = onExport,
-                onAddSticker = onAddSticker,
-            )
-        }
-        item(span = { GridItemSpan(maxLineSpan) }, key = "header", contentType = "header") {
-            NeoSectionHeader(
-                title = "Stickers",
-                meta = "$count/${PackRepository.MAX_WHATSAPP_STICKERS}",
-                modifier = Modifier.padding(top = 10.dp),
-            )
-        }
-        itemsIndexed(pack.stickers, key = { _, name -> name }, contentType = { _, _ -> "sticker" }) { index, fileName ->
-            StickerTile(
-                file = dir.resolve(fileName),
-                number = index + 1,
-                onClick = { openSticker = fileName },
-            )
-        }
-        if (!full) {
-            item(key = "add", contentType = "add") {
-                AddTile(onClick = onAddSticker)
+            if (count == 0) {
+                item(span = { GridItemSpan(maxLineSpan) }, key = "empty", contentType = "empty") {
+                    NeoEmptyState(
+                        title = "No stickers yet",
+                        body = "Pick a photo — stikr cuts the subject out right on your phone.",
+                        action = "Add first sticker",
+                        onAction = onAddSticker,
+                        modifier = Modifier.padding(top = 8.dp),
+                        art = { EmptyArt() },
+                    )
+                }
+                return@LazyVerticalGrid
+            }
+
+            item(span = { GridItemSpan(maxLineSpan) }, key = "header", contentType = "header") {
+                NeoSectionHeader(
+                    title = "Stickers",
+                    meta = "$count/${PackRepository.MAX_WHATSAPP_STICKERS}",
+                    modifier = Modifier.padding(top = 10.dp),
+                )
+            }
+            itemsIndexed(pack.stickers, key = { _, name -> name }, contentType = { _, _ -> "sticker" }) { index, fileName ->
+                StickerTile(
+                    file = dir.resolve(fileName),
+                    number = index + 1,
+                    onClick = { openSticker = fileName },
+                )
+            }
+            if (!full) {
+                item(key = "add", contentType = "add") {
+                    AddTile(onClick = onAddSticker)
+                }
             }
         }
+
+        ExportBar(
+            modifier = Modifier.align(Alignment.BottomCenter),
+            count = count,
+            whatsAppInstalled = whatsAppInstalled,
+            exporting = exporting,
+            onExport = onExport,
+        )
     }
 
     openSticker?.let { fileName ->
@@ -282,104 +280,84 @@ private fun TopBar(
 }
 
 /**
- * Where the pack stands with WhatsApp: how many more stickers it needs (a
- * three-cell meter), or the import button once it qualifies. Without
- * WhatsApp it says so and points at sharing single stickers instead.
+ * The WhatsApp action, pinned at the bottom of the pack screen: the import
+ * button once the pack qualifies, a "more to go" hint while it doesn't, the
+ * preparing spinner mid-export, and the no-WhatsApp fallback that points at
+ * sharing stickers one by one.
  */
 @Composable
-private fun ExportCard(
+private fun ExportBar(
+    modifier: Modifier = Modifier,
     count: Int,
     whatsAppInstalled: Boolean,
     exporting: Boolean,
     onExport: () -> Unit,
-    onAddSticker: () -> Unit,
 ) {
     val palette = Neo.palette
     val min = PackRepository.MIN_WHATSAPP_STICKERS
     val missing = (min - count).coerceAtLeast(0)
-    val ready = missing == 0
-    val fill = when {
-        !whatsAppInstalled -> palette.cyan
-        ready -> palette.green
-        else -> palette.butter
-    }
-    val ink = palette.onAccent
+    val ready = whatsAppInstalled && missing == 0
+    val nav = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
 
-    NeoCard(
-        modifier = Modifier.fillMaxWidth(),
-        fill = fill,
-        padding = PaddingValues(18.dp),
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(palette.paper)
+            .padding(bottom = nav),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            NeoTag(
-                text = if (whatsAppInstalled) "whatsapp" else "no whatsapp",
-                fill = palette.card,
-                rotation = -3f,
-            )
-            Spacer(Modifier.weight(1f))
-            if (whatsAppInstalled) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(NeoDimens.border)
+                .background(palette.ink),
+        )
+        Column(
+            modifier = Modifier.padding(
+                start = NeoDimens.gutter,
+                end = NeoDimens.gutter + NeoDimens.shadowSmall,
+                top = 12.dp,
+                bottom = 14.dp,
+            ),
+        ) {
+            if (!whatsAppInstalled) {
                 Text(
-                    text = "${count.coerceAtMost(min)}/$min MIN",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = ink,
+                    text = "WhatsApp isn’t on this phone — tap any sticker above to share it as an image",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = palette.muted,
+                    modifier = Modifier.padding(bottom = 10.dp),
+                )
+            } else if (!ready) {
+                Text(
+                    text = if (missing == 1) {
+                        "1 more sticker — WhatsApp takes packs of $min or more"
+                    } else {
+                        "$missing more stickers — WhatsApp takes packs of $min or more"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = palette.muted,
+                    modifier = Modifier.padding(bottom = 10.dp),
                 )
             }
-        }
-        Spacer(Modifier.height(14.dp))
-        Text(
-            text = when {
-                !whatsAppInstalled -> "SHARE THEM ONE BY ONE"
-                ready -> "READY FOR WHATSAPP"
-                missing == 1 -> "1 MORE TO GO"
-                else -> "$missing MORE TO GO"
-            },
-            style = MaterialTheme.typography.headlineMedium,
-            color = ink,
-            modifier = Modifier.semantics { heading() },
-        )
-        if (whatsAppInstalled) {
-            Spacer(Modifier.height(10.dp))
-            NeoMeter(
-                value = count,
-                target = min,
-                fill = ink,
-                // Pastel cards stay light in both themes, so the empty cell does too.
-                empty = Color.White,
-                edge = ink,
-                modifier = Modifier.semantics {
-                    contentDescription = "$count of $min stickers WhatsApp needs"
-                },
-            )
-        }
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = when {
-                !whatsAppInstalled -> "WhatsApp isn’t on this phone. Tap any sticker below to share it as an image."
-                ready -> "Import the whole pack into your WhatsApp sticker tray."
-                else -> "WhatsApp only takes packs of $min or more stickers."
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = ink,
-        )
-        if (whatsAppInstalled) {
-            Spacer(Modifier.height(16.dp))
-            when {
-                exporting -> Column {
-                    Text("PREPARING PACK…", style = MaterialTheme.typography.labelMedium, color = ink)
-                    Spacer(Modifier.height(8.dp))
-                    NeoProgressBar(contentDescription = "Preparing pack for WhatsApp")
+            if (exporting) {
+                // Same height as the button, so the band doesn't jump mid-export.
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Preparing pack…", style = MaterialTheme.typography.labelMedium)
+                        Spacer(Modifier.height(10.dp))
+                        NeoProgressBar(contentDescription = "Preparing pack for WhatsApp")
+                    }
                 }
-                ready -> NeoButton(
+            } else {
+                NeoButton(
                     text = "Add to WhatsApp",
                     onClick = onExport,
+                    enabled = ready,
                     haptic = NeoHaptic.Confirm,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                else -> NeoButton(
-                    text = "Add a sticker",
-                    onClick = onAddSticker,
-                    icon = Icons.Default.Add,
-                    fill = palette.card,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
