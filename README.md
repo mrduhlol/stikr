@@ -55,8 +55,9 @@ Uninstalling removes local packs, so share stickers you want to keep first.
 2. Pick a photo. stikr cuts out the subject automatically when available.
 3. Adjust the **outline**, add a **caption** if you want, and tap
    **Add to “*pack name*”**.
-4. With 3–30 stickers in a pack, tap **Add to WhatsApp** to import it.
-   To send one image, tap the sticker and choose **Share**.
+4. With 3–30 stickers in a pack, tap **Add to WhatsApp** at the bottom of the
+   pack screen to import it. To send one image, tap the sticker and choose
+   **Share**.
 
 The cut-out model downloads on first use through Google Play services.
 When cut-out is unavailable, stikr falls back to the full photo with the toggle exposed.
