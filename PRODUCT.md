@@ -47,7 +47,13 @@ delete stickers; export a pack to WhatsApp (3–30 stickers per pack) from a
 pinned Add to WhatsApp bar at the bottom of the pack screen; share a
 single sticker as a PNG through the share sheet; light and dark theme in the
 sticker-book look (cream paper, ink outlines, hard shadows, pastel cards,
-Anton display type).
+Anton display type); a three-page first-run tour shown once on the first
+launch and replayable from the home screen; batches that turn as many picked
+photos as the user likes into automatic packs of at most 30, with a title and
+an author set once and a run that can be stopped mid-way, keeping nothing;
+per-pack author metadata, passed to WhatsApp as the pack publisher; an
+enforced 30-sticker cap per pack, where a full pack disables saving and
+offers Save into a new pack.
 
 Constraints: static stickers only, no animation; cut-out requires Google Play
 services, everything else works fully offline; no cloud, no accounts, no

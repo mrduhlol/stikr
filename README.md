@@ -25,7 +25,9 @@ Current version **v0.1**. APK approximately **7.9 MB**. Free, for Android 8.0 an
 | **Cut out the subject** | ML Kit subject segmentation runs on device. Google Play services fetches the model once. If cut-out is unavailable, keep the full photo. |
 | **Add the sticker outline** | White or ink, with adjustable thickness. |
 | **Say something** | Optional caption in cream, ink, butter, or cherry, at the top or bottom. |
-| **Keep a pack** | Create, rename, and delete packs. Add and delete stickers. |
+| **Take the tour** | Three short pages on the first launch: photos in, stickers out; pick, cut, dress up; packs, ready for WhatsApp. The **info (ⓘ)** button in the home header replays them. |
+| **Keep a pack** | Create, rename, and delete packs. Add and delete stickers. A pack holds at most 30 stickers, WhatsApp's limit, so a full pack offers **Save into a new pack**. |
+| **Make a batch** | Pick as many photos as you like. stikr makes a sticker from each one and splits the run into packs of at most 30, with a title and an author you set once. |
 | **Send it to WhatsApp** | Import a pack of 3–30 stickers through the standard sticker-pack contract. Works with WhatsApp and WhatsApp Business. |
 | **Share one anywhere** | Send a sticker as a PNG through Android's normal share sheet. |
 | **Keep it local** | No sign-in, uploads, analytics, or telemetry. Cut-out requires Google Play services; everything else works fully offline. |
@@ -58,9 +60,17 @@ Uninstalling removes local packs, so share stickers you want to keep first.
 4. With 3–30 stickers in a pack, tap **Add to WhatsApp** at the bottom of the
    pack screen to import it. To send one image, tap the sticker and choose
    **Share**.
+5. For a pile of photos, tap **New batch** on home, set a **title** and an
+   **author**, and pick as many photos as you like. stikr makes a sticker from
+   each one and splits the run into packs of at most 30. You can stop a run
+   half-way — then nothing is kept. A full pack in the editor offers **Save
+   into a new pack**.
 
 The cut-out model downloads on first use through Google Play services.
 When cut-out is unavailable, stikr falls back to the full photo with the toggle exposed.
+A batch that fills more than one pack names them after the title —
+“Beach trip 1”, “Beach trip 2” — and the author is passed to WhatsApp as the
+pack's publisher.
 
 [Full how-to](https://mrduhlol.github.io/stikr/use.html) ·
 [Privacy details](https://mrduhlol.github.io/stikr/privacy.html)
@@ -69,10 +79,24 @@ When cut-out is unavailable, stikr falls back to the full photo with the toggle 
 
 ![Sample stikr screens in light mode](docs/theme/screens-light.png)
 
+The tour and the batch flow have screens of their own:
+
+| The tour | A new batch | Making stickers |
+| :--- | :--- | :--- |
+| ![The first page of the first-run tour](docs/theme/tour-light.png) | ![The New batch dialog, with a title and an author](docs/theme/batch-dialog-light.png) | ![A batch of 100 photos, 37 of them done](docs/theme/batch-running-light.png) |
+
+| The packs it made | A full pack |
+| :--- | :--- |
+| ![Two packs made from a batch of 100 photos](docs/theme/batch-done-light.png) | ![The editor when the pack is full](docs/theme/editor-full-light.png) |
+
 <details>
 <summary>See the dark theme</summary>
 
 ![Sample stikr screens in dark mode](docs/theme/screens-dark.png)
+
+| The tour | The packs it made |
+| :--- | :--- |
+| ![The first page of the first-run tour in dark mode](docs/theme/tour-dark.png) | ![Two packs made from a batch, in dark mode](docs/theme/batch-done-dark.png) |
 
 </details>
 
