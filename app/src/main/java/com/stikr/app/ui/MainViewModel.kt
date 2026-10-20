@@ -5,14 +5,19 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.stikr.app.data.BatchPlanner
 import com.stikr.app.data.ImageLoader
 import com.stikr.app.data.PackRepository
 import com.stikr.app.data.StickerPack
+import com.stikr.app.data.TourPrefs
 import com.stikr.app.editor.SubjectCutout
 import com.stikr.app.export.PackExporter
 import com.stikr.app.render.StickerCodec
 import com.stikr.app.render.StickerRenderer
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,9 +47,39 @@ data class EditorState(
     val ready: Boolean get() = preview != null && !loading && !saving
 }
 
+/** Which half of the batch flow the screen is showing. */
+enum class BatchPhase { PROCESSING, DONE }
+
+/**
+ * One batch run: what was asked for, how far it has got, and what it made.
+ *
+ * Counters: [processed] = photos attempted, [saved] = stickers written
+ * (includes fallbacks), [fellBack] = full-photo fallbacks, [failed] =
+ * unreadable photos. [created] is filled when [phase] flips to [DONE].
+ */
+data class BatchState(
+    val title: String,
+    val author: String,
+    val total: Int,
+    val expectedPacks: Int,
+    val processed: Int = 0,
+    val saved: Int = 0,
+    val fellBack: Int = 0,
+    val failed: Int = 0,
+    val created: List<StickerPack> = emptyList(),
+    val phase: BatchPhase = BatchPhase.PROCESSING,
+)
+
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = PackRepository(File(app.filesDir, "packs"))
+
+    // Test seams: the batch engine's photo loading and cut-out, swappable in
+    // unit tests. Production uses the real photo picker and ML Kit.
+    internal var imageLoader: (Uri) -> Bitmap? = { uri -> ImageLoader.load(getApplication(), uri) }
+    internal var subjectCutout: suspend (Bitmap) -> Bitmap? = { SubjectCutout.cut(it) }
+
+    private val tourPrefs = TourPrefs(app)
 
     private val _packs = MutableStateFlow<List<StickerPack>>(emptyList())
     val packs: StateFlow<List<StickerPack>> = _packs.asStateFlow()
@@ -55,12 +90,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
+    private val _showTour = MutableStateFlow(!tourPrefs.done)
+    val showTour: StateFlow<Boolean> = _showTour.asStateFlow()
+
+    private val _batch = MutableStateFlow<BatchState?>(null)
+    val batch: StateFlow<BatchState?> = _batch.asStateFlow()
+
     /** The pack being prepared for WhatsApp, or null. One export runs at a time. */
     private val _exportingPackId = MutableStateFlow<String?>(null)
     val exportingPackId: StateFlow<String?> = _exportingPackId.asStateFlow()
 
     private val previewRequests = Channel<Unit>(Channel.CONFLATED)
     private var imageRequest = 0L
+
+    @Volatile
+    private var batchCancelled = false
+    private var batchJob: Job? = null
 
     init {
         refresh()
@@ -95,16 +140,26 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // --------------------------------------------------------------- packs
 
     fun refresh() {
-        viewModelScope.launch {
-            _packs.value = withContext(Dispatchers.IO) { repo.listPacks() }
-        }
+        viewModelScope.launch { loadPacks() }
+    }
+
+    /**
+     * Reloads the pack list and waits for it, so a callback that navigates to a
+     * pack (right after creating one or saving into it) finds it in the list.
+     */
+    private suspend fun loadPacks() {
+        _packs.value = withContext(Dispatchers.IO) { repo.listPacks() }
     }
 
     fun createPack(name: String, onCreated: (StickerPack) -> Unit) {
         viewModelScope.launch {
             val pack = storage { repo.createPack(name) }
-            refresh()
-            if (pack != null) onCreated(pack) else notify("Couldn't create the pack")
+            if (pack == null) {
+                notify("Couldn't create the pack")
+                return@launch
+            }
+            loadPacks()
+            onCreated(pack)
         }
     }
 
@@ -137,6 +192,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun consumeMessage() {
         _message.value = null
+    }
+
+    // ---------------------------------------------------------------- tour
+
+    fun completeTour() {
+        tourPrefs.done = true
+        _showTour.value = false
+    }
+
+    fun replayTour() {
+        _showTour.value = true
     }
 
     // --------------------------------------------------------------- editor
@@ -233,6 +299,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (!state.ready) return
         _editor.value = state.copy(saving = true)
         viewModelScope.launch {
+            // A full pack is refused before anything is encoded; the photo stays.
+            val pack = storage { repo.getPack(state.packId) }
+            if (pack != null && pack.stickerCount >= PackRepository.MAX_WHATSAPP_STICKERS) {
+                _editor.value = _editor.value?.copy(saving = false)
+                notify("That pack is full \u2014 save into a new one")
+                return@launch
+            }
             // A debounced preview may still show the previous style. Save the current one.
             val bytes = withContext(Dispatchers.Default) {
                 val sticker = StickerRenderer.render(subject, state.style)
@@ -254,6 +327,78 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             notify("Sticker saved")
             onSaved()
         }
+    }
+
+    /** Saves the editor's sticker into a fresh pack named after the current one. */
+    fun saveStickerToNewPack(onSaved: (StickerPack) -> Unit) {
+        val state = _editor.value ?: return
+        val subject = state.subject ?: return
+        if (!state.ready) return
+        _editor.value = state.copy(saving = true)
+        viewModelScope.launch {
+            val current = storage { repo.getPack(state.packId) }
+            val name = BatchPlanner.nextPackName(current?.name ?: "My stickers")
+            val author = current?.author ?: PackRepository.DEFAULT_AUTHOR
+            val pack = storage { repo.createPack(name, author) }
+            if (pack == null) {
+                _editor.value = _editor.value?.copy(saving = false)
+                notify("Couldn't save the sticker")
+                return@launch
+            }
+            // A debounced preview may still show the previous style. Save the current one.
+            val bytes = withContext(Dispatchers.Default) {
+                val sticker = StickerRenderer.render(subject, state.style)
+                try {
+                    StickerCodec.encodeWebp(sticker)
+                } finally {
+                    sticker.recycle()
+                }
+            }
+            val updated = storage { repo.addSticker(pack.id, bytes) }
+            if (updated == null) {
+                // Don't leave an empty pack behind, and keep the photo to retry with.
+                storage { repo.deletePack(pack.id) }
+                _editor.value = _editor.value?.copy(saving = false)
+                refresh()
+                notify("Couldn't save the sticker")
+                return@launch
+            }
+            closeEditor()
+            loadPacks()
+            notify("Saved to \u201C${updated.name}\u201D")
+            onSaved(updated)
+        }
+    }
+
+    // --------------------------------------------------------------- batch
+
+    fun startBatch(title: String, author: String, uris: List<Uri>) {
+        if (uris.isEmpty() || _batch.value != null || batchJob?.isActive == true) return
+        val safeTitle = title.trim().ifEmpty { "My stickers" }
+        val safeAuthor = author.trim().ifEmpty { PackRepository.DEFAULT_AUTHOR }
+        _batch.value = BatchState(
+            title = safeTitle,
+            author = safeAuthor,
+            total = uris.size,
+            expectedPacks = BatchPlanner.chunkSizes(uris.size).size,
+        )
+        batchCancelled = false
+        batchJob = viewModelScope.launch {
+            try {
+                runBatch(uris, safeTitle, safeAuthor)
+            } finally {
+                batchJob = null
+            }
+        }
+    }
+
+    fun cancelBatch() {
+        if (_batch.value?.phase == BatchPhase.PROCESSING) batchCancelled = true
+    }
+
+    /** Closes the done screen. A running batch is stopped with [cancelBatch], never dismissed. */
+    fun dismissBatch() {
+        if (_batch.value?.phase == BatchPhase.DONE) _batch.value = null
     }
 
     // --------------------------------------------------------------- export
@@ -292,19 +437,212 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     // ------------------------------------------------------------- internals
 
-    /** Produces the sticker subject: cut-out + trimmed, or the photo itself. */
-    private suspend fun process(source: Bitmap, cutout: Boolean): Pair<Bitmap, Boolean> =
-        withContext(Dispatchers.Default) {
-            if (!cutout) return@withContext source to false
-            val cut = SubjectCutout.cut(source)
-            if (cut == null) {
-                source to true
-            } else {
-                val trimmed = StickerRenderer.trimTransparent(cut)
-                if (trimmed !== cut) cut.recycle()
-                trimmed to false
+    /**
+     * Produces the sticker subject: cut-out + trimmed, or the photo itself.
+     * The cutter is injectable so the batch engine can be tested without ML Kit.
+     */
+    private suspend fun process(
+        source: Bitmap,
+        cutout: Boolean,
+        cutter: suspend (Bitmap) -> Bitmap? = { SubjectCutout.cut(it) },
+    ): Pair<Bitmap, Boolean> = withContext(Dispatchers.Default) {
+        if (!cutout) return@withContext source to false
+        val cut = cutter(source)
+        if (cut == null) {
+            source to true
+        } else {
+            val trimmed = StickerRenderer.trimTransparent(cut)
+            if (trimmed !== cut) cut.recycle()
+            trimmed to false
+        }
+    }
+
+    /**
+     * Turns every readable photo into a sticker, creating 30-sticker packs as
+     * it goes. A photo that fails in any way (unreadable, cut-out, disk write)
+     * is counted as failed and the run continues. The batch always leaves
+     * PROCESSING: the finally block publishes DONE, or clears it when stopped.
+     */
+    private suspend fun runBatch(uris: List<Uri>, title: String, author: String) {
+        val createdIds = mutableListOf<String>()
+        val expectedPacks = BatchPlanner.chunkSizes(uris.size).size
+        var packId: String? = null
+        var processed = 0
+        var saved = 0
+        var fellBack = 0
+        var failed = 0
+
+        try {
+            for (uri in uris) {
+                if (batchCancelled) break
+
+                try {
+                    val source = withContext(Dispatchers.IO) { imageLoader(uri) }
+                    if (source == null) {
+                        failed++
+                    } else {
+                        try {
+                            val (subject, photoFellBack) =
+                                process(source, cutout = true, cutter = subjectCutout)
+                            try {
+                                val preview = withContext(Dispatchers.Default) {
+                                    StickerRenderer.render(subject, StickerRenderer.Style())
+                                }
+                                try {
+                                    val bytes =
+                                        withContext(Dispatchers.Default) { StickerCodec.encodeWebp(preview) }
+                                    // A new pack starts when there is none or the current one is full.
+                                    val needsPack = packId == null ||
+                                        saved % PackRepository.MAX_WHATSAPP_STICKERS == 0
+                                    val target = if (needsPack) {
+                                        val pack = storage {
+                                            repo.createPack(
+                                                name = BatchPlanner.packName(
+                                                    title,
+                                                    saved / PackRepository.MAX_WHATSAPP_STICKERS,
+                                                    expectedPacks,
+                                                ),
+                                                author = author,
+                                            )
+                                        }
+                                        if (pack == null) {
+                                            null
+                                        } else {
+                                            packId = pack.id
+                                            createdIds += pack.id
+                                            pack.id
+                                        }
+                                    } else {
+                                        packId
+                                    }
+                                    if (target == null) {
+                                        failed++
+                                    } else {
+                                        val updated = storage { repo.addSticker(target, bytes) }
+                                        if (updated == null) {
+                                            failed++
+                                        } else {
+                                            saved++
+                                            if (photoFellBack) fellBack++
+                                        }
+                                    }
+                                } finally {
+                                    preview.recycle()
+                                }
+                            } finally {
+                                if (subject !== source) subject.recycle()
+                            }
+                        } finally {
+                            source.recycle()
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    failed++
+                }
+
+                processed++
+                publishBatch(processed, saved, fellBack, failed)
+            }
+        } finally {
+            withContext(NonCancellable) {
+                finishBatch(createdIds, title, expectedPacks, processed, saved, fellBack, failed)
             }
         }
+    }
+
+    /**
+     * Terminal step of a run: deletes the packs when stopped, otherwise drops
+     * packs that never got a sticker and publishes the DONE snapshot.
+     */
+    private suspend fun finishBatch(
+        createdIds: MutableList<String>,
+        title: String,
+        expectedPacks: Int,
+        processed: Int,
+        saved: Int,
+        fellBack: Int,
+        failed: Int,
+    ) {
+        try {
+            if (batchCancelled) {
+                cancelFinishedBatch(createdIds)
+                return
+            }
+
+            // A failed write right after a chunk was created leaves an empty pack;
+            // drop it so the next chunk's name stays the one people see.
+            val empty = withContext(Dispatchers.IO) {
+                val ids = createdIds.filter { id -> (repo.getPack(id)?.stickerCount ?: 0) == 0 }
+                ids.forEach { repo.deletePack(it) }
+                ids
+            }
+            createdIds.removeAll(empty)
+
+            if (batchCancelled) {
+                cancelFinishedBatch(createdIds)
+                return
+            }
+
+            if (createdIds.size == 1 && expectedPacks > 1) {
+                storage { repo.renamePack(createdIds.first(), title) }
+            }
+            val created = withContext(Dispatchers.IO) {
+                val packs = repo.listPacks().associateBy { it.id }
+                createdIds.mapNotNull { packs[it] }
+            }
+
+            if (batchCancelled) {
+                cancelFinishedBatch(createdIds)
+                return
+            }
+
+            _batch.value = _batch.value?.copy(
+                phase = BatchPhase.DONE,
+                processed = processed,
+                saved = saved,
+                fellBack = fellBack,
+                failed = failed,
+                created = created,
+            )
+            refresh()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Even a failing close-out must not leave the progress screen spinning.
+            if (batchCancelled) {
+                _batch.value = null
+                notify("Batch stopped \u2014 nothing was saved")
+            } else {
+                _batch.value = _batch.value?.copy(
+                    phase = BatchPhase.DONE,
+                    processed = processed,
+                    saved = saved,
+                    fellBack = fellBack,
+                    failed = failed,
+                )
+            }
+            refresh()
+        }
+    }
+
+    private suspend fun cancelFinishedBatch(createdIds: List<String>) {
+        withContext(Dispatchers.IO) { createdIds.forEach { repo.deletePack(it) } }
+        _batch.value = null
+        refresh()
+        notify("Batch stopped \u2014 nothing was saved")
+    }
+
+    private fun publishBatch(processed: Int, saved: Int, fellBack: Int, failed: Int) {
+        _batch.value = _batch.value?.copy(
+            processed = processed,
+            saved = saved,
+            fellBack = fellBack,
+            failed = failed,
+        )
+        refresh()
+    }
 
     /** Runs a repository write off the main thread; null when storage fails (e.g. a full disk). */
     private suspend fun <T> storage(block: () -> T): T? = withContext(Dispatchers.IO) {
