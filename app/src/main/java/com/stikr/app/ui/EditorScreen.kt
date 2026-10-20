@@ -58,12 +58,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.stikr.app.data.PackRepository
 import com.stikr.app.render.StickerRenderer
 import com.stikr.app.ui.neo.Neo
 import com.stikr.app.ui.neo.NeoButton
 import com.stikr.app.ui.neo.NeoCard
 import com.stikr.app.ui.neo.NeoHaptic
 import com.stikr.app.ui.neo.NeoIconButton
+import com.stikr.app.ui.neo.NeoOutlinedButton
 import com.stikr.app.ui.neo.NeoProgressBar
 import com.stikr.app.ui.neo.NeoSegmented
 import com.stikr.app.ui.neo.NeoSlider
@@ -85,6 +87,8 @@ fun EditorScreen(
     onCutout: (Boolean) -> Unit,
     onStyle: (StickerRenderer.Style) -> Unit,
     onSave: () -> Unit,
+    packFull: Boolean,
+    onSaveNew: () -> Unit,
     onBack: () -> Unit,
 ) {
     val palette = Neo.palette
@@ -113,7 +117,13 @@ fun EditorScreen(
         containerColor = palette.paper,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            BottomBar(state = state, packName = packName, onSave = onSave)
+            BottomBar(
+                state = state,
+                packName = packName,
+                onSave = onSave,
+                onSaveNew = onSaveNew,
+                packFull = packFull,
+            )
         },
     ) { padding ->
         Column(
@@ -462,7 +472,13 @@ private fun CaptionCard(state: EditorState, onStyle: (StickerRenderer.Style) -> 
 
 /** The save bar: pinned above the navigation bar and the keyboard. */
 @Composable
-private fun BottomBar(state: EditorState, packName: String, onSave: () -> Unit) {
+private fun BottomBar(
+    state: EditorState,
+    packName: String,
+    onSave: () -> Unit,
+    onSaveNew: () -> Unit,
+    packFull: Boolean,
+) {
     val palette = Neo.palette
     Column(
         modifier = Modifier
@@ -481,14 +497,36 @@ private fun BottomBar(state: EditorState, packName: String, onSave: () -> Unit) 
                 .fillMaxWidth()
                 .padding(start = NeoDimens.gutter, end = NeoDimens.gutter + NeoDimens.shadow, top = 14.dp, bottom = 14.dp + NeoDimens.shadow),
         ) {
-            if (state.saving) {
-                Column(modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
+            when {
+                state.saving -> Column(modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
                     Text("SAVING STICKER…", style = MaterialTheme.typography.labelMedium, color = palette.ink)
                     Spacer(Modifier.height(10.dp))
                     NeoProgressBar(height = 28.dp, contentDescription = "Saving sticker")
                 }
-            } else {
-                NeoButton(
+
+                // A full pack can't take another sticker, but the work on
+                // screen shouldn't be lost: offer a fresh pack instead.
+                packFull -> Column {
+                    NeoButton(
+                        text = "Pack is full — ${PackRepository.MAX_WHATSAPP_STICKERS} stickers",
+                        onClick = {},
+                        enabled = false,
+                        shadow = NeoDimens.shadow,
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 17.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    NeoOutlinedButton(
+                        text = "Save into a new pack",
+                        onClick = onSaveNew,
+                        enabled = state.ready,
+                        shadow = NeoDimens.shadowSmall,
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 17.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
+                else -> NeoButton(
                     text = when {
                         packName.isNotEmpty() -> "Add to “$packName”"
                         else -> "Add to pack"

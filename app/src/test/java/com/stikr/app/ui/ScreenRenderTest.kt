@@ -42,7 +42,14 @@ class ScreenRenderTest {
     fun homeEmptyLight() {
         compose.setContent {
             StikrTheme(darkTheme = false) {
-                HomeScreen(packs = emptyList(), onOpenPack = {}, onCreatePack = {}, onMakeSticker = {})
+                HomeScreen(
+                    packs = emptyList(),
+                    onOpenPack = {},
+                    onCreatePack = {},
+                    onMakeSticker = {},
+                    onStartBatch = { _, _, _ -> },
+                    onShowTour = {},
+                )
             }
         }
         settle()
@@ -54,7 +61,14 @@ class ScreenRenderTest {
         val packs = listOf(packFixture("pack-2", "Faces"), packFixture("pack-1", "My stickers"))
         compose.setContent {
             StikrTheme(darkTheme = false) {
-                HomeScreen(packs = packs, onOpenPack = {}, onCreatePack = {}, onMakeSticker = {})
+                HomeScreen(
+                    packs = packs,
+                    onOpenPack = {},
+                    onCreatePack = {},
+                    onMakeSticker = {},
+                    onStartBatch = { _, _, _ -> },
+                    onShowTour = {},
+                )
             }
         }
         settle()
@@ -66,7 +80,14 @@ class ScreenRenderTest {
         val packs = listOf(packFixture("pack-2", "Faces"), packFixture("pack-1", "My stickers"))
         compose.setContent {
             StikrTheme(darkTheme = true) {
-                HomeScreen(packs = packs, onOpenPack = {}, onCreatePack = {}, onMakeSticker = {})
+                HomeScreen(
+                    packs = packs,
+                    onOpenPack = {},
+                    onCreatePack = {},
+                    onMakeSticker = {},
+                    onStartBatch = { _, _, _ -> },
+                    onShowTour = {},
+                )
             }
         }
         settle()
@@ -139,7 +160,17 @@ class ScreenRenderTest {
         capture("editor-dark-bottom", scrollTo = "BOTTOM")
     }
 
-    private fun editorScreen(dark: Boolean, transform: (EditorState) -> EditorState = { it }) {
+    @Test
+    fun editorFullLight() {
+        editorScreen(dark = false, packFull = true)
+        capture("editor-full-light")
+    }
+
+    private fun editorScreen(
+        dark: Boolean,
+        packFull: Boolean = false,
+        transform: (EditorState) -> EditorState = { it },
+    ) {
         val subject = sampleSubject(0xFFFFAB5E.toInt())
         val style = StickerRenderer.Style(outline = 14, caption = "hello", captionColor = StickerRenderer.CaptionColor.CHERRY)
         val state = transform(
@@ -160,6 +191,8 @@ class ScreenRenderTest {
                     onCutout = {},
                     onStyle = {},
                     onSave = {},
+                    onSaveNew = {},
+                    packFull = packFull,
                     onBack = {},
                 )
             }
@@ -249,7 +282,14 @@ class ScreenRenderTest {
     fun homeEmptyDark() {
         compose.setContent {
             StikrTheme(darkTheme = true) {
-                HomeScreen(packs = emptyList(), onOpenPack = {}, onCreatePack = {}, onMakeSticker = {})
+                HomeScreen(
+                    packs = emptyList(),
+                    onOpenPack = {},
+                    onCreatePack = {},
+                    onMakeSticker = {},
+                    onStartBatch = { _, _, _ -> },
+                    onShowTour = {},
+                )
             }
         }
         settle()
