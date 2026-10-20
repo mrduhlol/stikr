@@ -49,7 +49,8 @@ data class EditorState(
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val repo = PackRepository(File(app.filesDir, "packs"))
+    private val packsRoot = File(app.filesDir, "packs")
+    private val repo = PackRepository(packsRoot)
 
     // Test seams: the batch engine's photo loading and cut-out, swappable in
     // unit tests. Production uses the real photo picker and ML Kit.
@@ -276,33 +277,38 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (!state.ready) return
         _editor.value = state.copy(saving = true)
         viewModelScope.launch {
-            // A full pack is refused before anything is encoded; the photo stays.
-            val pack = storage { repo.getPack(state.packId) }
-            if (pack != null && pack.stickerCount >= PackRepository.MAX_WHATSAPP_STICKERS) {
-                _editor.value = _editor.value?.copy(saving = false)
-                notify("That pack is full \u2014 save into a new one")
-                return@launch
-            }
-            // A debounced preview may still show the previous style. Save the current one.
-            val bytes = withContext(Dispatchers.Default) {
-                val sticker = StickerRenderer.render(subject, state.style)
-                try {
-                    StickerCodec.encodeWebp(sticker)
-                } finally {
-                    sticker.recycle()
+            var saved = false
+            try {
+                // A full pack is refused before anything is encoded; the photo stays.
+                val pack = storage { repo.getPack(state.packId) }
+                if (pack != null && pack.stickerCount >= PackRepository.MAX_WHATSAPP_STICKERS) {
+                    _editor.value = _editor.value?.copy(saving = false)
+                    notify("That pack is full \u2014 save into a new one")
+                    return@launch
+                }
+                // A debounced preview may still show the previous style. Save the current one.
+                val bytes = encodeSticker(subject, state.style)
+                val updated = storage { repo.addSticker(state.packId, bytes) }
+                if (updated == null) {
+                    // Keep the photo and style so the user can retry.
+                    _editor.value = _editor.value?.copy(saving = false)
+                    notify("Couldn't save the sticker")
+                    return@launch
+                }
+                closeEditor()
+                refresh()
+                notify("Sticker saved")
+                saved = true
+                onSaved()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // A failure must not leave the editor stuck on "saving".
+                if (!saved) {
+                    _editor.value = _editor.value?.copy(saving = false)
+                    notify("Couldn't save the sticker")
                 }
             }
-            val updated = storage { repo.addSticker(state.packId, bytes) }
-            if (updated == null) {
-                // Keep the photo and style so the user can retry.
-                _editor.value = _editor.value?.copy(saving = false)
-                notify("Couldn't save the sticker")
-                return@launch
-            }
-            closeEditor()
-            refresh()
-            notify("Sticker saved")
-            onSaved()
         }
     }
 
@@ -313,37 +319,44 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (!state.ready) return
         _editor.value = state.copy(saving = true)
         viewModelScope.launch {
-            val current = storage { repo.getPack(state.packId) }
-            val name = BatchPlanner.nextPackName(current?.name ?: "My stickers")
-            val author = current?.author ?: PackRepository.DEFAULT_AUTHOR
-            val pack = storage { repo.createPack(name, author) }
-            if (pack == null) {
-                _editor.value = _editor.value?.copy(saving = false)
-                notify("Couldn't save the sticker")
-                return@launch
-            }
-            // A debounced preview may still show the previous style. Save the current one.
-            val bytes = withContext(Dispatchers.Default) {
-                val sticker = StickerRenderer.render(subject, state.style)
-                try {
-                    StickerCodec.encodeWebp(sticker)
-                } finally {
-                    sticker.recycle()
+            // A pack that was created but never filled must not survive a failure.
+            var halfMade: StickerPack? = null
+            try {
+                val current = storage { repo.getPack(state.packId) }
+                val name = BatchPlanner.nextPackName(current?.name ?: "My stickers")
+                val author = current?.author ?: PackRepository.DEFAULT_AUTHOR
+                val pack = storage { repo.createPack(name, author) }
+                if (pack == null) {
+                    _editor.value = _editor.value?.copy(saving = false)
+                    notify("Couldn't save the sticker")
+                    return@launch
                 }
-            }
-            val updated = storage { repo.addSticker(pack.id, bytes) }
-            if (updated == null) {
-                // Don't leave an empty pack behind, and keep the photo to retry with.
-                storage { repo.deletePack(pack.id) }
+                halfMade = pack
+                // A debounced preview may still show the previous style. Save the current one.
+                val bytes = encodeSticker(subject, state.style)
+                val updated = storage { repo.addSticker(pack.id, bytes) }
+                if (updated == null) {
+                    // Don't leave an empty pack behind, and keep the photo to retry with.
+                    deletePackFolder(pack.id)
+                    _editor.value = _editor.value?.copy(saving = false)
+                    refresh()
+                    notify("Couldn't save the sticker")
+                    return@launch
+                }
+                halfMade = null // the sticker is in; a later failure must not delete the pack
+                closeEditor()
+                loadPacks()
+                notify("Saved to \u201C${updated.name}\u201D")
+                onSaved(updated)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Nothing may be left behind: no empty pack, no stuck spinner.
+                halfMade?.let { pack -> deletePackFolder(pack.id) }
                 _editor.value = _editor.value?.copy(saving = false)
                 refresh()
                 notify("Couldn't save the sticker")
-                return@launch
             }
-            closeEditor()
-            loadPacks()
-            notify("Saved to \u201C${updated.name}\u201D")
-            onSaved(updated)
         }
     }
 
@@ -432,6 +445,38 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             if (trimmed !== cut) cut.recycle()
             trimmed to false
         }
+    }
+
+    /**
+     * Renders the subject as a 512x512 sticker and encodes it as a WebP.
+     * A recycled subject or a failed encode throws; callers keep the editor.
+     */
+    private suspend fun encodeSticker(
+        subject: Bitmap,
+        style: StickerRenderer.Style,
+    ): ByteArray = withContext(Dispatchers.Default) {
+        val sticker = StickerRenderer.render(subject, style)
+        try {
+            StickerCodec.encodeWebp(sticker)
+        } finally {
+            sticker.recycle()
+        }
+    }
+
+    /**
+     * Removes a pack from storage; false when it is still on disk afterwards.
+     * The folder decides the outcome, because a delete can fail silently.
+     */
+    private suspend fun deletePackFolder(id: String): Boolean {
+        if (!File(packsRoot, id).exists()) return true
+        try {
+            storage { repo.deletePack(id) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // The folder check below decides whether the pack is really gone.
+        }
+        return !File(packsRoot, id).exists()
     }
 
     /**
@@ -549,13 +594,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
 
             // A failed write right after a chunk was created leaves an empty pack;
-            // drop it so the next chunk's name stays the one people see.
+            // drop it so the next chunk's name stays the one people see. A pack
+            // that cannot be removed stays in the list, so the user can see it.
             val empty = withContext(Dispatchers.IO) {
-                val ids = createdIds.filter { id -> (repo.getPack(id)?.stickerCount ?: 0) == 0 }
-                ids.forEach { repo.deletePack(it) }
-                ids
-            }
-            createdIds.removeAll(empty)
+                createdIds.filter { id -> (repo.getPack(id)?.stickerCount ?: 0) == 0 }
+            }.toSet()
+            val stuck = empty.filter { id -> !deletePackFolder(id) }.toSet()
+            createdIds.retainAll { id -> id !in empty || id in stuck }
 
             if (batchCancelled) {
                 cancelFinishedBatch(createdIds)
@@ -589,8 +634,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         } catch (_: Exception) {
             // Even a failing close-out must not leave the progress screen spinning.
             if (batchCancelled) {
+                val stillOnDisk = deleteCreatedPacks(createdIds)
                 _batch.value = null
-                notify("Batch stopped \u2014 nothing was saved")
+                notify(cancelNotice(stillOnDisk))
             } else {
                 _batch.value = _batch.value?.copy(
                     phase = BatchPhase.DONE,
@@ -605,12 +651,28 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private suspend fun cancelFinishedBatch(createdIds: List<String>) {
-        withContext(Dispatchers.IO) { createdIds.forEach { repo.deletePack(it) } }
+        val stillOnDisk = deleteCreatedPacks(createdIds)
         _batch.value = null
         refresh()
-        notify("Batch stopped \u2014 nothing was saved")
+        notify(cancelNotice(stillOnDisk))
     }
 
+    /** Deletes every pack the run created; returns how many are still on disk. */
+    private suspend fun deleteCreatedPacks(ids: List<String>): Int =
+        ids.count { id -> !deletePackFolder(id) }
+
+    /** The cancel notice only claims nothing was saved when that is true. */
+    private fun cancelNotice(stillOnDisk: Int): String =
+        if (stillOnDisk == 0) {
+            "Batch stopped \u2014 nothing was saved"
+        } else {
+            "Batch stopped \u2014 $stillOnDisk pack${if (stillOnDisk == 1) "" else "s"} couldn't be deleted"
+        }
+
+    /**
+     * Publishes the counters. The pack list is re-synced when the run ends, not
+     * per photo: a long run would list every pack hundreds of times.
+     */
     private fun publishBatch(processed: Int, saved: Int, fellBack: Int, failed: Int) {
         _batch.value = _batch.value?.copy(
             processed = processed,
@@ -618,7 +680,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             fellBack = fellBack,
             failed = failed,
         )
-        refresh()
     }
 
     /** Runs a repository write off the main thread; null when storage fails (e.g. a full disk). */

@@ -10,7 +10,9 @@ import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import com.stikr.app.data.PackRepository
 import com.stikr.app.data.StickerPack
+import com.stikr.app.data.TourPrefs
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -23,6 +25,8 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
 import java.time.Duration
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * Drives the batch engine through the real view model and the real
@@ -72,6 +76,27 @@ class BatchEngineTest {
         return requireNotNull(vm.batch.value)
     }
 
+    /**
+     * Parks the batch's photo loader until the test opens the gate, so a test
+     * can act on a batch that is provably still running. No wall-clock sleeps.
+     */
+    private class Gate {
+        private val entered = CountDownLatch(1)
+        private val open = CountDownLatch(1)
+
+        /** Called by the fake loader: waits until the test lets the run continue. */
+        fun hold() {
+            entered.countDown()
+            open.await(30, TimeUnit.SECONDS)
+        }
+
+        /** True when the run reached the loader. */
+        fun reached(): Boolean = entered.await(30, TimeUnit.SECONDS)
+
+        /** Lets the run continue. */
+        fun release() = open.countDown()
+    }
+
     @Test
     fun batchOf31SplitsInto30And1() {
         val vm = viewModel(*BooleanArray(31) { true })
@@ -83,7 +108,9 @@ class BatchEngineTest {
         assertEquals(listOf("Beach trip 1", "Beach trip 2"), state.created.map { it.name })
         assertEquals(listOf(30, 1), state.created.map { it.stickerCount })
         assertTrue("both packs carry the batch author", state.created.all { it.author == "Ada" })
+        assertEquals(2, state.expectedPacks)
         assertEquals(31, state.saved)
+        assertEquals(0, state.fellBack)
         assertEquals(0, state.failed)
         assertEquals(31, state.processed)
 
@@ -112,17 +139,20 @@ class BatchEngineTest {
     @Test
     fun cancelDeletesTheBatchesPacks() {
         val vm = viewModel(*BooleanArray(10) { true })
-        // A slow loader keeps the run alive long enough to stop it mid-way.
+        // The loader parks the run, so the cancel lands while it is under way.
+        val gate = Gate()
         vm.imageLoader = {
-            Thread.sleep(20)
+            gate.hold()
             fakePhoto()
         }
 
         vm.startBatch("Trip", "Ada", uris(10))
-
-        await { (vm.batch.value?.processed ?: 0) >= 3 }
-
-        vm.cancelBatch()
+        try {
+            assertTrue("the run never reached the loader", gate.reached())
+            vm.cancelBatch()
+        } finally {
+            gate.release()
+        }
 
         await { vm.batch.value == null }
 
@@ -134,19 +164,22 @@ class BatchEngineTest {
     @Test
     fun dismissAndRestartAreIgnoredWhileRunning() {
         val vm = viewModel(*BooleanArray(10) { true })
+        // The loader parks the run, so it is provably still going.
+        val gate = Gate()
         vm.imageLoader = {
-            Thread.sleep(20)
+            gate.hold()
             fakePhoto()
         }
 
         vm.startBatch("First", "Ada", uris(10))
-
-        await { (vm.batch.value?.processed ?: 0) >= 1 }
-
-        vm.dismissBatch()
-        assertTrue("dismissing does not abandon a running batch", vm.batch.value != null)
-
-        vm.startBatch("Second", "Grace", uris(2))
+        try {
+            assertTrue("the run never reached the loader", gate.reached())
+            vm.dismissBatch()
+            assertTrue("dismissing does not abandon a running batch", vm.batch.value != null)
+            vm.startBatch("Second", "Grace", uris(2))
+        } finally {
+            gate.release()
+        }
 
         val state = awaitBatch(vm)
         assertEquals("First", state.title)
@@ -279,6 +312,53 @@ class BatchEngineTest {
         assertEquals(1, saved.stickerCount)
         assertNull("the editor is cleared", vm.editor.value)
         assertEquals("Saved to \u201CMy stickers 2\u201D", vm.message.value)
+    }
+
+    /**
+     * The tour follows the stored preference. It lives in this file because the
+     * task may only touch this test file.
+     */
+    @Test
+    fun tourStateFollowsTheStoredPreference() {
+        TourPrefs(app).done = false
+        val vm = MainViewModel(app)
+        assertTrue("the tour shows on a first run", vm.showTour.value)
+
+        vm.completeTour()
+        assertFalse("completing the tour hides it", vm.showTour.value)
+        assertTrue("the tour is remembered", TourPrefs(app).done)
+
+        vm.replayTour()
+        assertTrue("the tour can be replayed", vm.showTour.value)
+
+        val next = MainViewModel(app)
+        assertFalse("the tour does not come back on its own", next.showTour.value)
+    }
+
+    /**
+     * A failure while encoding must not leave an empty pack behind, and the
+     * editor must not stay stuck on "saving".
+     */
+    @Test
+    fun aFailedSaveIntoANewPackLeavesNothingBehind() {
+        val repository = repo()
+        val pack = repository.createPack("Mine")
+
+        val vm = MainViewModel(app)
+        vm.startEditor(pack.id)
+        vm.setCutout(false)
+        vm.loadImage(photoUri())
+        await { vm.editor.value?.ready == true }
+        // A recycled subject makes the render throw inside the save.
+        vm.editor.value!!.subject!!.recycle()
+
+        vm.saveStickerToNewPack { }
+        await { vm.message.value != null }
+
+        assertEquals("Couldn't save the sticker", vm.message.value)
+        assertNotNull("the editor keeps the photo", vm.editor.value)
+        assertFalse("the editor is not stuck saving", vm.editor.value!!.saving)
+        assertEquals("no empty pack is left behind", 1, repository.listPacks().size)
     }
 
     /** A real photo on disk, so the editor has a subject to work with. */
