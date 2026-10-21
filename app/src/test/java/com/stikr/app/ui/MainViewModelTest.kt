@@ -77,6 +77,43 @@ class MainViewModelTest {
     }
 
     @Test
+    fun importsThirtyPhotosAndEditsAnExistingStickerInPlaceWithAutoCutoutOff() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val root = File(app.filesDir, "packs").apply { deleteRecursively() }
+        val repository = PackRepository(root)
+        val pack = repository.createPack("Thirty")
+        val model = MainViewModel(app)
+        val store = ViewModelStore().apply { put("import", model) }
+        model.imageLoader = {
+            Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.GREEN) }
+        }
+        model.subjectCutout = { error("Auto cutout must be opt-in") }
+        try {
+            model.importPhotos(pack.id, (1..31).map { Uri.parse("content://photos/$it") })
+            assertNotNull(model.importing.value)
+            await { model.importing.value == null }
+            val imported = repository.getPack(pack.id)!!
+            assertEquals(30, imported.stickerCount)
+            assertNotNull(repository.sourceFile(pack.id, imported.stickers.first()))
+            model.editSticker(pack.id, imported.stickers.first())
+            await { model.editor.value?.ready == true }
+            assertEquals(false, model.editor.value!!.cutoutEnabled)
+            model.setStyle(StickerRenderer.Style(caption = "edited"))
+            var saved = false
+            model.saveSticker { saved = true }
+            await { saved }
+            val edited = repository.getPack(pack.id)!!
+            assertEquals(imported.stickers, edited.stickers)
+            assertEquals(30, edited.stickerCount)
+            model.editSticker(pack.id, imported.stickers.first())
+            await { model.editor.value?.ready == true }
+            assertEquals("edited", model.editor.value!!.style.caption)
+            assertEquals(32, model.editor.value!!.source!!.width)
+            assertEquals(false, model.editor.value!!.cutoutEnabled)
+        } finally { store.clear() }
+    }
+
+    @Test
     fun exportReportsProgressUntilWhatsAppIsHandedThePack() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         val root = File(app.filesDir, "packs").apply { deleteRecursively() }

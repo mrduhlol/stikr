@@ -66,6 +66,48 @@ class PackRepositoryTest {
     }
 
     @Test
+    fun fullPackRejectsNewStickerButAllowsReplacementAndInvalidatesTray() {
+        val repository = repo()
+        val pack = repository.createPack("Full")
+        repeat(30) { repository.addSticker(pack.id, byteArrayOf(1), "stk_$it.webp") }
+        repository.setTrayImage(pack.id, byteArrayOf(7))
+        assertNull(repository.addSticker(pack.id, byteArrayOf(2)))
+        val replaced = repository.replaceSticker(pack.id, "stk_0.webp", byteArrayOf(3), byteArrayOf(9))!!
+        assertEquals(30, replaced.stickerCount)
+        assertEquals(30, replaced.stickers.distinct().size)
+        assertNull(replaced.trayImage)
+        assertEquals(3, repository.stickerFile(pack.id, "stk_0.webp")!!.readBytes().single().toInt())
+        assertEquals(9, repository.sourceFile(pack.id, "stk_0.webp")!!.readBytes().single().toInt())
+        assertNull(repository.stickerFile(pack.id, "stk_0.webp.source.png"))
+        repository.deleteSticker(pack.id, "stk_0.webp")
+        assertNull(repository.sourceFile(pack.id, "stk_0.webp"))
+    }
+
+    @Test
+    fun replacementMetadataFailureRollsBackStickerOriginalAndEditorSettings() {
+        val repository = repo()
+        val pack = repository.createPack("Rollback")
+        repository.addSticker(pack.id, byteArrayOf(1), "stk_a.webp", byteArrayOf(2), "old settings")
+        repository.setTrayImage(pack.id, byteArrayOf(7))
+        val file = repository.stickerFile(pack.id, "stk_a.webp")!!
+        val dir = file.parentFile!!
+        val originalMetadata = File(dir, PackRepository.PACK_FILE).readText()
+        // Final asset moves succeed; opening the metadata staging file then fails.
+        File(dir, "${PackRepository.PACK_FILE}.tmp").mkdir()
+        var failed = false
+        try {
+            repository.replaceSticker(pack.id, "stk_a.webp", byteArrayOf(3), byteArrayOf(4), "new settings")
+        } catch (_: Exception) { failed = true }
+        assertTrue("Replacement must report failed metadata writes", failed)
+        assertEquals(1, file.readBytes().single().toInt())
+        assertEquals(2, repository.sourceFile(pack.id, "stk_a.webp")!!.readBytes().single().toInt())
+        assertEquals("old settings", repository.editData(pack.id, "stk_a.webp"))
+        assertEquals(originalMetadata, File(dir, PackRepository.PACK_FILE).readText())
+        assertEquals(PackRepository.TRAY_FILE, repository.getPack(pack.id)!!.trayImage)
+        assertTrue(dir.listFiles()!!.none { it.name.startsWith("replace_") })
+    }
+
+    @Test
     fun unreadablePackIsSkipped() {
         val root = File(temp.root, "packs")
         val broken = File(root, "pack_broken").apply { mkdirs() }

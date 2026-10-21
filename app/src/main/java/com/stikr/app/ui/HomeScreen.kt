@@ -5,38 +5,39 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,18 +47,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,21 +58,11 @@ import com.stikr.app.data.PackRepository
 import com.stikr.app.data.StickerPack
 import com.stikr.app.ui.neo.Neo
 import com.stikr.app.ui.neo.NeoButton
-import com.stikr.app.ui.neo.NeoCard
 import com.stikr.app.ui.neo.NeoDialog
 import com.stikr.app.ui.neo.NeoHaptic
-import com.stikr.app.ui.neo.NeoIconButton
 import com.stikr.app.ui.neo.NeoOutlinedButton
-import com.stikr.app.ui.neo.NeoSectionHeader
-import com.stikr.app.ui.neo.NeoTag
-import com.stikr.app.ui.neo.NeoTextButton
 import com.stikr.app.ui.neo.NeoTextField
-import com.stikr.app.ui.neo.NeoWordmark
-import com.stikr.app.ui.neo.StickerHeadline
-import com.stikr.app.ui.neo.neoFrame
-import com.stikr.app.ui.neo.rememberHaptics
 import com.stikr.app.ui.theme.NeoDimens
-import com.stikr.app.ui.theme.NeoShapes
 import java.io.File
 
 @Composable
@@ -90,112 +73,160 @@ fun HomeScreen(
     onMakeSticker: () -> Unit,
     onStartBatch: (String, String, List<Uri>) -> Unit,
     onShowTour: () -> Unit,
+    onSettings: () -> Unit = {},
 ) {
     val palette = Neo.palette
     var showCreate by rememberSaveable { mutableStateOf(false) }
     var showCreateBatch by rememberSaveable { mutableStateOf(false) }
-    // The picker answers after the dialog is gone, so the names it needs are
-    // kept here, not in the dialog's own state.
+    // The photo picker returns after the naming dialog has closed.
     var pendingTitle by rememberSaveable { mutableStateOf("") }
     var pendingAuthor by rememberSaveable { mutableStateOf(PackRepository.DEFAULT_AUTHOR) }
     val bars = WindowInsets.systemBars.asPaddingValues()
-
-    // As many photos as the user likes: the picker decides, not us.
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
         if (uris.isNotEmpty()) onStartBatch(pendingTitle, pendingAuthor, uris)
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(palette.paper),
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = Modifier.fillMaxSize().background(palette.paper),
+        contentPadding = PaddingValues(
+            start = 20.dp,
+            end = 20.dp,
+            top = bars.calculateTopPadding() + 8.dp,
+            bottom = bars.calculateBottomPadding() + 28.dp,
+        ),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = NeoDimens.gutter,
-                end = NeoDimens.gutter + NeoDimens.shadow,
-                top = bars.calculateTopPadding() + 8.dp,
-                bottom = bars.calculateBottomPadding() + if (packs.isEmpty()) 32.dp else 112.dp,
-            ),
-            horizontalArrangement = Arrangement.spacedBy(NeoDimens.gap + NeoDimens.shadow / 2),
-            verticalArrangement = Arrangement.spacedBy(NeoDimens.gap + NeoDimens.shadow / 2),
-        ) {
-            item(span = { GridItemSpan(maxLineSpan) }, key = "wordmark", contentType = "wordmark") {
-                NeoWordmark(
-                    trailing = {
-                        NeoTag("on-device", fill = palette.green, rotation = 3f)
-                        Spacer(Modifier.width(NeoDimens.gapSmall))
-                        // The tour, on demand: the same one a first run shows.
-                        NeoIconButton(
-                            onClick = onShowTour,
-                            icon = Icons.Default.Info,
-                            contentDescription = "About stikr",
-                        )
-                    },
+        item(span = { GridItemSpan(maxLineSpan) }, key = "toolbar") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "stikr",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = palette.ink,
+                    modifier = Modifier.weight(1f),
                 )
-            }
-
-            if (packs.isEmpty()) {
-                item(span = { GridItemSpan(maxLineSpan) }, key = "hero", contentType = "hero") {
-                    EmptyHero(
-                        onMakeSticker = onMakeSticker,
-                        onNewBatch = { showCreateBatch = true },
-                        onCreatePack = { showCreate = true },
-                    )
+                IconButton(onClick = onShowTour) {
+                    Icon(Icons.Default.Info, contentDescription = "App guide", tint = palette.muted)
                 }
-            } else {
-                item(span = { GridItemSpan(maxLineSpan) }, key = "header", contentType = "header") {
-                    NeoSectionHeader(
-                        title = "Your packs",
-                        meta = if (packs.size == 1) "1 pack" else "${packs.size} packs",
-                        modifier = Modifier.padding(top = 8.dp),
-                        trailing = {
-                            NeoOutlinedButton(
-                                text = "New batch",
-                                onClick = { showCreateBatch = true },
-                                shadow = NeoDimens.shadowSmall,
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                            )
-                        },
-                    )
-                }
-                itemsIndexed(packs, key = { _, pack -> pack.id }, contentType = { _, _ -> "pack" }) { index, pack ->
-                    PackCard(
-                        pack = pack,
-                        fill = packFill(index),
-                        showNew = index == 0 && packs.size > 1,
-                        onClick = { onOpenPack(pack.id) },
-                    )
-                }
-                item(span = { GridItemSpan(maxLineSpan) }, key = "new-pack", contentType = "new-pack") {
-                    NewPackRow(onClick = { showCreate = true })
+                IconButton(onClick = onSettings) {
+                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = palette.ink)
                 }
             }
         }
-
-        if (packs.isNotEmpty()) {
-            NeoButton(
-                text = "Make a sticker",
-                onClick = onMakeSticker,
-                icon = Icons.Default.Add,
-                haptic = NeoHaptic.Confirm,
-                shadow = NeoDimens.shadowLarge - 2.dp,
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(start = NeoDimens.gutter, end = NeoDimens.gutter + NeoDimens.shadow, bottom = 20.dp)
-                    .fillMaxWidth(),
-            )
+        item(span = { GridItemSpan(maxLineSpan) }, key = "create") {
+            Column(Modifier.padding(top = 8.dp, bottom = 8.dp)) {
+                Text(
+                    "Make it yours.",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontFamily = FontFamily.Default,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 32.sp,
+                        lineHeight = 38.sp,
+                        letterSpacing = (-1).sp,
+                    ),
+                    color = palette.ink,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Your photos, ready for the conversation.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = palette.muted,
+                )
+                Spacer(Modifier.height(24.dp))
+                Surface(color = palette.card, shape = RoundedCornerShape(20.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(20.dp)) {
+                        Text("Create a sticker pack", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "Select your photos together. Open the pack to edit any sticker.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = palette.muted,
+                        )
+                        Spacer(Modifier.height(18.dp))
+                        Button(
+                            onClick = { showCreateBatch = true },
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Text(
+                                "Select photos",
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                            )
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
+                        TextButton(
+                            colors = ButtonDefaults.textButtonColors(contentColor = palette.cherryInk),
+                            onClick = onMakeSticker,
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                        ) {
+                            Text("Edit a single photo", style = MaterialTheme.typography.titleSmall)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "On your device · Up to 30 stickers per pack",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = palette.muted,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                )
+            }
+        }
+        item(span = { GridItemSpan(maxLineSpan) }, key = "library") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Your packs", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+                    Text(
+                        if (packs.isEmpty()) "A home for your stickers" else
+                            "${packs.size} ${if (packs.size == 1) "pack" else "packs"} · ${packs.sumOf { it.stickerCount }} stickers",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = palette.muted,
+                    )
+                }
+                TextButton(
+                    onClick = { showCreate = true },
+                    colors = ButtonDefaults.textButtonColors(contentColor = palette.cherryInk),
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text("New pack", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(start = 4.dp))
+                }
+            }
+        }
+        if (packs.isEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }, key = "empty") {
+                Surface(color = palette.card, shape = RoundedCornerShape(16.dp)) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Box(
+                            Modifier.size(52.dp).background(palette.creamDim, RoundedCornerShape(16.dp)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = palette.muted)
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        Text("Your first pack starts here", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+                        Spacer(Modifier.height(6.dp))
+                        Text("Choose photos above to get started.", style = MaterialTheme.typography.bodyMedium, color = palette.muted)
+                    }
+                }
+            }
+        } else {
+            items(packs, key = { it.id }, contentType = { "pack" }) { pack ->
+                PackCard(pack, onClick = { onOpenPack(pack.id) })
+            }
         }
     }
 
     if (showCreate) {
         NameDialog(
             title = "New pack",
-            kicker = "Name it",
+            kicker = "Pack details",
             confirmLabel = "Create",
             initial = "",
             onDismiss = { showCreate = false },
@@ -205,13 +236,10 @@ fun HomeScreen(
             },
         )
     }
-
     if (showCreateBatch) {
         CreateBatchDialog(
             onDismiss = { showCreateBatch = false },
             onConfirm = { title, author ->
-                // The picker's answer lands after this dialog is gone, so the
-                // names wait here for it.
                 showCreateBatch = false
                 pendingTitle = title
                 pendingAuthor = author
@@ -221,225 +249,62 @@ fun HomeScreen(
     }
 }
 
-/** Packs cycle through the pastel card colours. */
 @Composable
-private fun packFill(index: Int): Color {
-    val palette = Neo.palette
-    return when (index % 4) {
-        0 -> palette.cyan
-        1 -> palette.green
-        2 -> palette.butter
-        else -> palette.pink
-    }
-}
-
-@Composable
-private fun EmptyHero(onMakeSticker: () -> Unit, onNewBatch: () -> Unit, onCreatePack: () -> Unit) {
-    val palette = Neo.palette
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Spacer(Modifier.height(12.dp))
-        StickerHeadline(
-            text = "Photos in, stickers out.",
-            accentWord = "stickers",
-            fontSize = 58.sp,
-        )
-        Spacer(Modifier.height(18.dp))
-        Text(
-            text = "Pick a photo. stikr cuts out the subject on your phone, gives it a white " +
-                "sticker outline and packs it for WhatsApp. Nothing is uploaded, ever.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = palette.ink,
-        )
-        Spacer(Modifier.height(26.dp))
-        StepsStrip()
-        Spacer(Modifier.height(30.dp))
-        NeoButton(
-            text = "Make a sticker",
-            onClick = onMakeSticker,
-            trailingIcon = Icons.AutoMirrored.Filled.ArrowForward,
-            haptic = NeoHaptic.Confirm,
-            shadow = NeoDimens.shadowLarge - 2.dp,
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 18.dp),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(10.dp))
-        NeoOutlinedButton(
-            text = "New batch",
-            onClick = onNewBatch,
-            shadow = NeoDimens.shadowSmall,
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(10.dp))
-        NeoTextButton(
-            text = "or start an empty pack",
-            onClick = onCreatePack,
-            color = palette.muted,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-        )
-    }
-}
-
-/** How it works, as a rigid three-cell strip sharing ink rules. */
-@Composable
-private fun StepsStrip() {
-    val palette = Neo.palette
-    val steps = remember {
-        listOf(
-            Triple("01", "🖼️", "Pick a photo"),
-            Triple("02", "✂️", "Cut it out"),
-            Triple("03", "💬", "Send to WhatsApp"),
-        )
-    }
-    val fills = listOf(palette.cyan, palette.pink, palette.green)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(IntrinsicSize.Min)
-            .neoFrame(
-                fill = palette.card,
-                borderColor = palette.onAccent,
-                shadowColor = palette.shadow,
-                shape = NeoShapes.card,
-                clipContent = true,
-            ),
-    ) {
-        steps.forEachIndexed { index, (number, emoji, label) ->
-            if (index > 0) {
-                Box(
-                    Modifier
-                        .width(NeoDimens.border)
-                        .fillMaxHeight()
-                        .background(palette.onAccent),
-                )
-            }
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .background(fills[index])
-                    .padding(horizontal = 12.dp, vertical = 14.dp)
-                    .clearAndSetSemantics { contentDescription = "Step $number: $label" },
-            ) {
-                Text(number, style = MaterialTheme.typography.labelMedium, color = palette.onAccent)
-                Spacer(Modifier.height(10.dp))
-                Text(emoji, fontSize = 26.sp)
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = label.uppercase(),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = palette.onAccent,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun PackCard(
-    pack: StickerPack,
-    fill: Color,
-    showNew: Boolean,
-    onClick: () -> Unit,
-) {
+private fun PackCard(pack: StickerPack, onClick: () -> Unit) {
     val palette = Neo.palette
     val context = LocalContext.current
     val root = remember(context) { File(context.filesDir, "packs") }
     val count = pack.stickerCount
     val missing = (PackRepository.MIN_WHATSAPP_STICKERS - count).coerceAtLeast(0)
-    val countLabel = if (count == 1) "1 sticker" else "$count stickers"
-    val full = count >= PackRepository.MAX_WHATSAPP_STICKERS
-
-    NeoCard(
-        modifier = Modifier.fillMaxWidth(),
-        fill = fill,
-        padding = PaddingValues(12.dp),
+    val files = remember(pack.id, pack.stickers) {
+        pack.stickers.take(4).map { root.resolve(pack.id).resolve(it) }
+    }
+    Surface(
         onClick = onClick,
-        onClickLabel = "Open pack",
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = palette.card,
     ) {
-        Row(verticalAlignment = Alignment.Top) {
+        Column(Modifier.padding(12.dp)) {
+            Mosaic(files)
+            Spacer(Modifier.height(12.dp))
             Text(
-                text = pack.name.uppercase(),
-                style = MaterialTheme.typography.titleLarge,
-                color = palette.onAccent,
+                pack.name,
+                style = MaterialTheme.typography.titleSmall,
+                color = palette.ink,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
             )
-            if (showNew) {
-                NeoTag("new", fill = palette.card, rotation = 6f)
-            }
-            if (full) {
-                // A full pack can't take another sticker: the editor offers a
-                // new one instead.
-                if (showNew) Spacer(Modifier.width(6.dp))
-                NeoTag("full", fill = palette.card, rotation = -6f)
-            }
-        }
-        Text(
-            text = countLabel.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            color = palette.onAccent,
-        )
-        Spacer(Modifier.height(10.dp))
-        Mosaic(
-            files = remember(pack.id, pack.stickers) {
-                pack.stickers.take(4).map { root.resolve(pack.id).resolve(it) }
-            },
-        )
-        Spacer(Modifier.height(10.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.height(4.dp))
             Text(
-                text = if (missing == 0) "WHATSAPP READY" else "$missing MORE FOR WHATSAPP",
-                style = MaterialTheme.typography.labelSmall,
-                color = palette.onAccent,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
+                "$count / ${PackRepository.MAX_WHATSAPP_STICKERS} stickers",
+                style = MaterialTheme.typography.bodySmall,
+                color = palette.muted,
             )
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                tint = palette.onAccent,
-                modifier = Modifier.size(18.dp),
+            Spacer(Modifier.height(8.dp))
+            Text(
+                if (missing == 0) "Ready for WhatsApp" else "Add $missing to share",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (missing == 0) palette.cherryInk else palette.muted,
             )
         }
     }
 }
 
-/** The first four stickers of a pack in a ruled 2x2 sheet. */
+/** Quiet preview wells keep the focus on the user's actual stickers. */
 @Composable
 private fun Mosaic(files: List<File>) {
     val palette = Neo.palette
-    val rule = palette.onAccent
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f)
-            .neoFrame(
-                // A paper well, not white, so white sticker outlines stay visible.
-                fill = palette.creamDim,
-                borderColor = rule,
-                shadowColor = palette.shadow,
-                shape = NeoShapes.control,
-                shadowOffset = 0.dp,
-                clipContent = true,
-            )
-            .padding(NeoDimens.border),
+        Modifier.fillMaxWidth().aspectRatio(1f)
+            .background(palette.creamDim, RoundedCornerShape(10.dp)).padding(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        for (row in 0..1) {
-            if (row == 1) Box(Modifier.fillMaxWidth().height(NeoDimens.hairline).background(rule))
-            Row(modifier = Modifier.weight(1f)) {
-                for (column in 0..1) {
-                    if (column == 1) Box(Modifier.width(NeoDimens.hairline).fillMaxHeight().background(rule))
-                    val file = files.getOrNull(row * 2 + column)
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .padding(5.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
+        repeat(2) { row ->
+            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                repeat(2) { column ->
+                    Box(Modifier.weight(1f).fillMaxSize().padding(3.dp), contentAlignment = Alignment.Center) {
+                        val file = files.getOrNull(row * 2 + column)
                         if (file != null) {
                             StickerImage(file = file, contentDescription = null, modifier = Modifier.fillMaxSize())
                         }
@@ -447,47 +312,6 @@ private fun Mosaic(files: List<File>) {
                 }
             }
         }
-    }
-}
-
-/** A dashed full-width slot that reads as "a pack goes here". */
-@Composable
-private fun NewPackRow(onClick: () -> Unit) {
-    val palette = Neo.palette
-    val haptics = rememberHaptics()
-    val ink = palette.ink
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 64.dp)
-            .drawWithCache {
-                val width = NeoDimens.border.toPx()
-                val dash = Stroke(
-                    width = width,
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(), 7.dp.toPx())),
-                )
-                val radius = CornerRadius(6.dp.toPx())
-                onDrawBehind {
-                    drawRoundRect(
-                        color = ink,
-                        topLeft = Offset(width / 2f, width / 2f),
-                        size = Size(size.width - width, size.height - width),
-                        cornerRadius = radius,
-                        style = dash,
-                    )
-                }
-            }
-            .clickable(role = Role.Button, onClickLabel = "Create a new pack") {
-                haptics(NeoHaptic.Tap)
-                onClick()
-            }
-            .padding(horizontal = 18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        Icon(Icons.Default.Add, contentDescription = null, tint = palette.ink, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(10.dp))
-        Text("NEW PACK", style = MaterialTheme.typography.labelLarge, color = palette.ink)
     }
 }
 

@@ -94,11 +94,17 @@ class StickerPackContentProviderTest {
         repo.addSticker(pack.id, byteArrayOf(2), fileName = "stk_two.webp")
         val second = version()
         assertNotEquals(first, second)
+        repo.stickerFile(pack.id, "stk_two.webp")!!.apply {
+            writeBytes(byteArrayOf(2, 3))
+            setLastModified(500_000L)
+        }
+        val edited = version()
+        assertNotEquals("Editing a sticker in place must invalidate WhatsApp cache", second, edited)
         repo.setTrayImage(pack.id, byteArrayOf(3))
         val tray = File(File(File(ApplicationProvider.getApplicationContext<Context>().filesDir, "packs"), pack.id), "tray.webp")
         tray.setLastModified(1_000_000L)
         val third = version()
-        assertNotEquals(second, third)
+        assertNotEquals(edited, third)
         tray.setLastModified(2_000_000L)
         assertNotEquals(third, version())
     }
@@ -115,6 +121,30 @@ class StickerPackContentProviderTest {
             "vnd.android.cursor.dir/vnd.$authority.stickers",
             provider.getType(Uri.parse("content://$authority/stickers/${pack.id}")),
         )
+    }
+
+    @Test
+    fun pngTrayAndWebpStickersHaveReadableAssetDescriptorsWithKnownLengths() {
+        val (_, provider, repo, authority) = fixture()
+        val pack = repo.createPack("Assets")
+        val stickerBytes = byteArrayOf(1, 2, 3, 4)
+        val trayBytes = byteArrayOf(5, 6)
+        repo.addSticker(pack.id, stickerBytes, "one.webp")
+        repo.setTrayImage(pack.id, trayBytes, "tray.png")
+        listOf("one.webp" to stickerBytes, "tray.png" to trayBytes).forEach { (name, bytes) ->
+            val uri = Uri.parse("content://$authority/stickers_asset/${pack.id}/$name")
+            provider.openAssetFile(uri, "r").use { asset ->
+                assertEquals(bytes.size.toLong(), asset.declaredLength)
+                asset.createInputStream().use { input -> assertTrue(bytes.contentEquals(input.readBytes())) }
+            }
+        }
+        assertEquals("image/png", provider.getType(Uri.parse("content://$authority/stickers_asset/${pack.id}/tray.png")))
+        try {
+            provider.openAssetFile(Uri.parse("content://$authority/stickers_asset/${pack.id}/one.webp"), "w")
+            fail("WhatsApp assets must be read-only")
+        } catch (_: FileNotFoundException) {
+            // expected
+        }
     }
 
     @Test

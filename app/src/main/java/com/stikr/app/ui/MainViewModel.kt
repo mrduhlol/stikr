@@ -2,6 +2,8 @@ package com.stikr.app.ui
 
 import android.app.Application
 import android.graphics.Bitmap
+import android.content.Intent
+import java.io.ByteArrayOutputStream
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -27,6 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
+import org.json.JSONObject
 
 /** Everything the editor screen needs to draw itself. */
 data class EditorState(
@@ -41,11 +44,14 @@ data class EditorState(
     val status: String? = null,
     val saving: Boolean = false,
     val style: StickerRenderer.Style = StickerRenderer.Style(),
-    val cutoutEnabled: Boolean = true,
+    val cutoutEnabled: Boolean = false,
+    val editingFileName: String? = null,
     val cutoutFailed: Boolean = false,
 ) {
     val ready: Boolean get() = preview != null && !loading && !saving
 }
+
+data class PackImportState(val packId: String, val total: Int, val processed: Int = 0, val saved: Int = 0, val failed: Int = 0)
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -77,6 +83,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** The pack being prepared for WhatsApp, or null. One export runs at a time. */
     private val _exportingPackId = MutableStateFlow<String?>(null)
     val exportingPackId: StateFlow<String?> = _exportingPackId.asStateFlow()
+
+    private val _importing = MutableStateFlow<PackImportState?>(null)
+    val importing: StateFlow<PackImportState?> = _importing.asStateFlow()
 
     private val previewRequests = Channel<Unit>(Channel.CONFLATED)
     private var imageRequest = 0L
@@ -191,6 +200,79 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         renderPreview()
     }
 
+    fun editSticker(packId: String, fileName: String) {
+        startEditor(packId)
+        _editor.value = _editor.value?.copy(editingFileName = fileName, loading = true)
+        val request = imageRequest
+        viewModelScope.launch {
+            val file = storage { repo.sourceFile(packId, fileName) ?: repo.stickerFile(packId, fileName) }
+            if (request != imageRequest) return@launch
+            if (file == null) {
+                _editor.value = _editor.value?.copy(loading = false)
+                notify("Couldn't open that sticker")
+            } else {
+                // Older stickers have no original; avoid adding another outline by default.
+                if (!file.name.endsWith(".source.png")) {
+                    _editor.value = _editor.value?.copy(style = StickerRenderer.Style(outline = 0))
+                }
+                val data = storage { repo.editData(packId, fileName) }
+                if (request != imageRequest) return@launch
+                if (data != null) try {
+                    val json = JSONObject(data)
+                    _editor.value = _editor.value?.copy(
+                        cutoutEnabled = json.optBoolean("cutout", false),
+                        style = StickerRenderer.Style(
+                            outline = json.optInt("outline", 8),
+                            outlineColor = StickerRenderer.OutlineColor.valueOf(json.getString("outlineColor")),
+                            caption = json.optString("caption"),
+                            captionPosition = StickerRenderer.CaptionPosition.valueOf(json.getString("captionPosition")),
+                            captionColor = StickerRenderer.CaptionColor.valueOf(json.getString("captionColor")),
+                        ),
+                    )
+                } catch (_: Exception) { /* Older or incomplete editor settings use defaults. */ }
+                loadImage(Uri.fromFile(file))
+            }
+        }
+    }
+
+    /** Imports sequentially to keep bitmap memory bounded, without opening 30 editors. */
+    fun importPhotos(packId: String, uris: List<Uri>) {
+        if (uris.isEmpty() || _importing.value != null) return
+        _importing.value = PackImportState(packId, uris.size)
+        viewModelScope.launch {
+            var saved = 0
+            var failed = 0
+            try {
+                val pack = storage { repo.getPack(packId) } ?: return@launch
+                val photos = uris.distinct().take((PackRepository.MAX_WHATSAPP_STICKERS - pack.stickerCount).coerceAtLeast(0))
+                _importing.value = PackImportState(packId, photos.size)
+                photos.forEachIndexed { index, uri ->
+                    try {
+                        val source = withContext(Dispatchers.IO) { imageLoader(uri) }
+                        if (source == null) failed++ else try {
+                            val bytes = encodeSticker(source, StickerRenderer.Style())
+                            val original = encodeSource(source)
+                            if (storage { repo.addSticker(packId, bytes, source = original) } == null) failed++ else saved++
+                        } finally { source.recycle() }
+                    } catch (e: CancellationException) { throw e
+                    } catch (_: Exception) { failed++ }
+                    _importing.value = PackImportState(packId, photos.size, index + 1, saved, failed)
+                    loadPacks()
+                }
+                val skipped = uris.size - photos.size
+                notify(buildString {
+                    append("Added $saved ")
+                    append(if (saved == 1) "sticker" else "stickers")
+                    if (failed > 0) append(" · $failed couldn't be read or saved")
+                    if (skipped > 0) append(" · $skipped skipped (30 per pack)")
+                })
+            } finally {
+                _importing.value = null
+                loadPacks()
+            }
+        }
+    }
+
     fun closeEditor() {
         imageRequest++
         _editor.value = null
@@ -281,14 +363,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 // A full pack is refused before anything is encoded; the photo stays.
                 val pack = storage { repo.getPack(state.packId) }
-                if (pack != null && pack.stickerCount >= PackRepository.MAX_WHATSAPP_STICKERS) {
+                if (state.editingFileName == null && pack != null && pack.stickerCount >= PackRepository.MAX_WHATSAPP_STICKERS) {
                     _editor.value = _editor.value?.copy(saving = false)
                     notify("That pack is full \u2014 save into a new one")
                     return@launch
                 }
                 // A debounced preview may still show the previous style. Save the current one.
                 val bytes = encodeSticker(subject, state.style)
-                val updated = storage { repo.addSticker(state.packId, bytes) }
+                val original = state.source?.let { encodeSource(it) }
+                val updated = storage {
+                    if (state.editingFileName == null) repo.addSticker(state.packId, bytes, source = original, editData = editorData(state))
+                    else repo.replaceSticker(state.packId, state.editingFileName, bytes, source = original, editData = editorData(state))
+                }
                 if (updated == null) {
                     // Keep the photo and style so the user can retry.
                     _editor.value = _editor.value?.copy(saving = false)
@@ -334,7 +420,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 halfMade = pack
                 // A debounced preview may still show the previous style. Save the current one.
                 val bytes = encodeSticker(subject, state.style)
-                val updated = storage { repo.addSticker(pack.id, bytes) }
+                val original = state.source?.let { encodeSource(it) }
+                val updated = storage { repo.addSticker(pack.id, bytes, source = original, editData = editorData(state)) }
                 if (updated == null) {
                     // Don't leave an empty pack behind, and keep the photo to retry with.
                     deletePackFolder(pack.id)
@@ -393,7 +480,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     // --------------------------------------------------------------- export
 
-    fun exportToWhatsApp(packId: String) {
+    fun exportToWhatsApp(packId: String, onPrepared: (Intent) -> Unit = {}) {
         val pack = _packs.value.firstOrNull { it.id == packId } ?: return
         if (pack.stickerCount < PackRepository.MIN_WHATSAPP_STICKERS) {
             notify("WhatsApp needs at least ${PackRepository.MIN_WHATSAPP_STICKERS} stickers in a pack")
@@ -405,13 +492,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val prepared = try {
                     PackExporter.ensureTray(getApplication(), repo, pack)
-                } catch (_: IOException) {
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
                     notify("Couldn't prepare the pack for WhatsApp")
                     return@launch
                 }
-                val launched = PackExporter.launchWhatsApp(getApplication(), prepared)
+                val intent = PackExporter.createWhatsAppIntent(getApplication(), prepared)
                 refresh()
-                if (!launched) notify("WhatsApp isn't installed \u2014 share a single sticker instead")
+                if (intent != null) onPrepared(intent)
+                if (intent == null) notify("WhatsApp isn't installed \u2014 share a single sticker instead")
             } finally {
                 _exportingPackId.value = null
             }
@@ -451,6 +541,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * Renders the subject as a 512x512 sticker and encodes it as a WebP.
      * A recycled subject or a failed encode throws; callers keep the editor.
      */
+    private fun editorData(state: EditorState): String = JSONObject()
+        .put("cutout", state.cutoutEnabled)
+        .put("outline", state.style.outline)
+        .put("outlineColor", state.style.outlineColor.name)
+        .put("caption", state.style.caption)
+        .put("captionPosition", state.style.captionPosition.name)
+        .put("captionColor", state.style.captionColor.name)
+        .toString()
+
+    private suspend fun encodeSource(source: Bitmap): ByteArray = withContext(Dispatchers.IO) {
+        ByteArrayOutputStream().use { out ->
+            check(source.compress(Bitmap.CompressFormat.PNG, 100, out))
+            out.toByteArray()
+        }
+    }
+
     private suspend fun encodeSticker(
         subject: Bitmap,
         style: StickerRenderer.Style,
@@ -505,7 +611,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     } else {
                         try {
                             val (subject, photoFellBack) =
-                                process(source, cutout = true, cutter = subjectCutout)
+                                process(source, cutout = false, cutter = subjectCutout)
                             try {
                                 val preview = withContext(Dispatchers.Default) {
                                     StickerRenderer.render(subject, StickerRenderer.Style())
@@ -540,7 +646,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                                     if (target == null) {
                                         failed++
                                     } else {
-                                        val updated = storage { repo.addSticker(target, bytes) }
+                                        val original = encodeSource(source)
+                                        val updated = storage { repo.addSticker(target, bytes, source = original) }
                                         if (updated == null) {
                                             failed++
                                         } else {

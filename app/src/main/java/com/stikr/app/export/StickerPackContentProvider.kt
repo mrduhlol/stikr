@@ -2,6 +2,7 @@ package com.stikr.app.export
 
 import android.content.ContentProvider
 import android.content.ContentValues
+import android.content.res.AssetFileDescriptor
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
@@ -47,16 +48,27 @@ class StickerPackContentProvider : ContentProvider() {
         }
     }
 
-    override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
+    override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor =
+        ParcelFileDescriptor.open(assetFile(uri, mode), ParcelFileDescriptor.MODE_READ_ONLY)
+
+    override fun openAssetFile(uri: Uri, mode: String): AssetFileDescriptor {
+        val file = assetFile(uri, mode)
+        return AssetFileDescriptor(
+            ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY),
+            0,
+            file.length(),
+        )
+    }
+
+    private fun assetFile(uri: Uri, mode: String): File {
         if (mode != "r") throw FileNotFoundException("stikr only serves read-only stickers")
         val segments = uri.pathSegments
-        val file: File? = if (segments.size == 3 && segments[0] == STICKERS_ASSET) {
+        val file = if (segments.size == 3 && segments[0] == STICKERS_ASSET) {
             repo.stickerFile(segments[1], segments[2])
         } else {
             null
         }
-        if (file == null || !file.isFile) throw FileNotFoundException("No such sticker: $uri")
-        return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+        return file?.takeIf { it.isFile } ?: throw FileNotFoundException("No such sticker: $uri")
     }
 
     override fun getType(uri: Uri): String? {
@@ -69,7 +81,7 @@ class StickerPackContentProvider : ContentProvider() {
                 "vnd.android.cursor.item/vnd.$authority.$METADATA"
             }
             STICKERS -> "vnd.android.cursor.dir/vnd.$authority.$STICKERS"
-            STICKERS_ASSET -> "image/webp"
+            STICKERS_ASSET -> if (segments.lastOrNull()?.endsWith(".png") == true) "image/png" else "image/webp"
             else -> null
         }
     }
@@ -112,11 +124,14 @@ class StickerPackContentProvider : ContentProvider() {
 
     /**
      * WhatsApp caches pack images until this string changes, so it tracks the
-     * sticker list and the tray file. The tray is rewritten under the same name.
+     * sticker files and the tray file, including edits saved under the same name.
      */
     private fun imageDataVersion(pack: StickerPack): String {
         val tray = pack.trayImage?.let { repo.stickerFile(pack.id, it) }?.lastModified() ?: 0L
-        val stickers = pack.stickers.take(PackRepository.MAX_WHATSAPP_STICKERS)
+        val stickers = pack.stickers.take(PackRepository.MAX_WHATSAPP_STICKERS).map { name ->
+            val file = repo.stickerFile(pack.id, name)
+            "$name:${file?.lastModified()}:${file?.length()}"
+        }
         return (stickers.hashCode().toLong() * 31 + tray).toULong().toString(36)
     }
 

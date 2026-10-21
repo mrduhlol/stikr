@@ -5,7 +5,9 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
 import android.os.Looper
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -14,7 +16,9 @@ import com.stikr.app.data.PackRepository
 import com.stikr.app.data.StickerPack
 import com.stikr.app.data.TourPrefs
 import com.stikr.app.render.StickerCodec
+import com.stikr.app.ui.theme.AppearanceMode
 import com.stikr.app.ui.theme.StikrTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -59,13 +63,49 @@ class StikrAppTest : ScreenRenderHarness() {
 
         // The tour is over the home screen, not instead of a screen.
         compose.onNodeWithText("Skip", ignoreCase = true).assertIsDisplayed()
-        compose.onNodeWithText("Make a sticker", ignoreCase = true).assertDoesNotExist()
+        compose.onNodeWithText("Edit a single photo", ignoreCase = true).assertDoesNotExist()
 
         viewModel.completeTour()
         settle()
 
         compose.onNodeWithText("Skip", ignoreCase = true).assertDoesNotExist()
-        compose.onNodeWithText("Make a sticker", ignoreCase = true).assertIsDisplayed()
+        compose.onNodeWithText("Edit a single photo", ignoreCase = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun settingsOpensFromHomeSelectsAppearanceAndReturnsToTheLibrary() {
+        val viewModel = viewModel(tour = false)
+        val selectedMode = mutableStateOf(AppearanceMode.SYSTEM)
+        compose.setContent {
+            StikrTheme(darkTheme = false) {
+                StikrApp(
+                    viewModel = viewModel,
+                    appearanceMode = selectedMode.value,
+                    onAppearanceChange = { selectedMode.value = it },
+                )
+            }
+        }
+        settle()
+
+        compose.onNodeWithContentDescription("Settings").performClick()
+        settle()
+        compose.onNodeWithText("Appearance").assertIsDisplayed()
+        compose.onNodeWithText("Light").assertIsDisplayed()
+        compose.onNodeWithText("Dark").assertIsDisplayed()
+        compose.onNodeWithText("AMOLED").assertIsDisplayed().performClick()
+        settle()
+        assertEquals(AppearanceMode.AMOLED, selectedMode.value)
+
+        compose.onNodeWithText("Back", ignoreCase = true).performClick()
+        settle()
+        compose.onNodeWithText("Select photos").assertIsDisplayed()
+        compose.onNodeWithText("Appearance").assertDoesNotExist()
+
+        // Opening Settings again must reflect the mode the user selected.
+        compose.onNodeWithContentDescription("Settings").performClick()
+        settle()
+        assertEquals(AppearanceMode.AMOLED, selectedMode.value)
+        compose.onNodeWithText("AMOLED").assertIsDisplayed().assertIsSelected()
     }
 
     // ---------------------------------------------------------- the batch
@@ -96,7 +136,7 @@ class StikrAppTest : ScreenRenderHarness() {
             // No tour: the batch screen is up and the home screen is not.
             compose.onNodeWithText("Stop", ignoreCase = true).assertIsDisplayed()
             compose.onNodeWithText("Skip", ignoreCase = true).assertDoesNotExist()
-            compose.onNodeWithText("Make a sticker", ignoreCase = true).assertDoesNotExist()
+            compose.onNodeWithText("Edit a single photo", ignoreCase = true).assertDoesNotExist()
         } finally {
             gate.release()
         }
@@ -111,13 +151,38 @@ class StikrAppTest : ScreenRenderHarness() {
         show(viewModel)
         awaitPacks(viewModel, pack.id)
 
-        compose.onNodeWithText("Make a sticker", ignoreCase = true).performClick()
+        compose.onNodeWithText("Edit a single photo", ignoreCase = true).performClick()
         settle()
 
         compose.onNodeWithText("Pack is full — 30 stickers", ignoreCase = true).assertIsDisplayed()
         compose.onNodeWithText("Save into a new pack", ignoreCase = true).assertIsDisplayed()
         // The ordinary save button is gone.
-        compose.onNodeWithText("Add to", substring = true, ignoreCase = true).assertDoesNotExist()
+        compose.onNodeWithText("Add to “Full pack”", ignoreCase = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun editingAStickerInAFullPackReplacesItWithoutOpeningThePicker() {
+        val pack = fullPack()
+        val viewModel = viewModel(tour = false)
+        show(viewModel)
+        awaitPacks(viewModel, pack.id)
+        compose.onNodeWithText("Full pack", ignoreCase = true).performClick()
+        settle()
+        compose.onNodeWithContentDescription("Sticker 1").performClick()
+        settle()
+        compose.onNodeWithText("Edit sticker", ignoreCase = true).performClick()
+        await { viewModel.editor.value?.ready == true }
+        settle()
+        compose.onNodeWithText("Edit sticker", ignoreCase = true).assertIsDisplayed()
+        compose.onNodeWithText("Save changes", ignoreCase = true).assertIsDisplayed()
+        compose.onNodeWithText("Pack is full — 30 stickers", ignoreCase = true).assertDoesNotExist()
+        assertEquals(pack.id, viewModel.editor.value!!.packId)
+        assertTrue(viewModel.editor.value!!.editingFileName != null)
+        compose.onNodeWithText("Save changes", ignoreCase = true).performClick()
+        await { viewModel.editor.value == null }
+        settle()
+        assertEquals(30, PackRepository(File(app.filesDir, "packs")).getPack(pack.id)!!.stickerCount)
+        compose.onNodeWithText("Full pack", ignoreCase = true).assertIsDisplayed()
     }
 
     @Test
@@ -215,7 +280,7 @@ class StikrAppTest : ScreenRenderHarness() {
 
     /** Opens the editor for the first pack, with a photo loaded and ready to save. */
     private fun openReadyEditor(viewModel: MainViewModel) {
-        compose.onNodeWithText("Make a sticker", ignoreCase = true).performClick()
+        compose.onNodeWithText("Edit a single photo", ignoreCase = true).performClick()
         settle()
         viewModel.setCutout(false)
         viewModel.loadImage(photoUri())

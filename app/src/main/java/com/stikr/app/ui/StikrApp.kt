@@ -1,5 +1,9 @@
 package com.stikr.app.ui
 
+import android.app.Activity
+import android.content.ActivityNotFoundException
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -34,18 +38,31 @@ import com.stikr.app.data.PackRepository
 import com.stikr.app.ui.neo.Neo
 import com.stikr.app.ui.neo.NeoSnackbar
 import com.stikr.app.ui.theme.NeoMotion
+import com.stikr.app.ui.theme.AppearanceMode
 
-private enum class Screen { HOME, PACK, EDITOR }
+private enum class Screen { HOME, PACK, EDITOR, SETTINGS }
 
 @Composable
-fun StikrApp(viewModel: MainViewModel = viewModel()) {
+fun StikrApp(
+    viewModel: MainViewModel = viewModel(),
+    appearanceMode: AppearanceMode = AppearanceMode.SYSTEM,
+    onAppearanceChange: (AppearanceMode) -> Unit = {},
+) {
     val packs by viewModel.packs.collectAsStateWithLifecycle()
     val editor by viewModel.editor.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val exportingPackId by viewModel.exportingPackId.collectAsStateWithLifecycle()
     val batch by viewModel.batch.collectAsStateWithLifecycle()
     val showTour by viewModel.showTour.collectAsStateWithLifecycle()
+    val importing by viewModel.importing.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val whatsappLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val validationError = result.data?.getStringExtra("validation_error")
+        when {
+            !validationError.isNullOrBlank() -> viewModel.notify("WhatsApp couldn't add this pack: $validationError")
+            result.resultCode == Activity.RESULT_OK -> viewModel.notify("Pack added to WhatsApp")
+        }
+    }
 
     var screen by rememberSaveable { mutableStateOf(Screen.HOME.name) }
     var packId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -134,6 +151,7 @@ fun StikrApp(viewModel: MainViewModel = viewModel()) {
                         onMakeSticker = ::makeSticker,
                         onStartBatch = { title, author, uris -> viewModel.startBatch(title, author, uris) },
                         onShowTour = viewModel::replayTour,
+                        onSettings = { screen = Screen.SETTINGS.name },
                     )
 
                     Screen.PACK.name -> {
@@ -147,13 +165,35 @@ fun StikrApp(viewModel: MainViewModel = viewModel()) {
                                 onRename = { viewModel.renamePack(pack.id, it) },
                                 onDelete = { viewModel.deletePack(pack.id) { screen = Screen.HOME.name } },
                                 onAddSticker = { openEditor(pack.id) },
+                                onImportPhotos = { viewModel.importPhotos(pack.id, it) },
+                                onEditSticker = { fileName ->
+                                    viewModel.editSticker(pack.id, fileName)
+                                    screen = Screen.EDITOR.name
+                                },
+                                importState = importing?.takeIf { it.packId == pack.id },
                                 onDeleteSticker = { viewModel.deleteSticker(pack.id, it) },
                                 onShareSticker = { viewModel.shareSticker(pack.id, it) },
-                                onExport = { viewModel.exportToWhatsApp(pack.id) },
+                                onExport = {
+                                    viewModel.exportToWhatsApp(pack.id) { intent ->
+                                        try {
+                                            whatsappLauncher.launch(intent)
+                                        } catch (_: ActivityNotFoundException) {
+                                            viewModel.notify("WhatsApp isn't available on this device")
+                                        } catch (_: SecurityException) {
+                                            viewModel.notify("Couldn't open WhatsApp. Please update WhatsApp and try again")
+                                        }
+                                    }
+                                },
                                 exporting = exportingPackId == pack.id,
                             )
                         }
                     }
+
+                    Screen.SETTINGS.name -> SettingsScreen(
+                        mode = appearanceMode,
+                        onSelect = onAppearanceChange,
+                        onBack = { screen = Screen.HOME.name },
+                    )
 
                     Screen.EDITOR.name -> {
                         val state = editor
@@ -182,7 +222,7 @@ fun StikrApp(viewModel: MainViewModel = viewModel()) {
                                 },
                                 // A full pack can't take another sticker; the editor
                                 // offers a fresh one instead.
-                                packFull = (pack?.stickerCount ?: 0) >= PackRepository.MAX_WHATSAPP_STICKERS,
+                                packFull = state.editingFileName == null && (pack?.stickerCount ?: 0) >= PackRepository.MAX_WHATSAPP_STICKERS,
                                 onBack = { leaveEditor() },
                             )
                         }

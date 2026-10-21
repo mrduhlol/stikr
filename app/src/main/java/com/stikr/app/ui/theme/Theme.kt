@@ -126,6 +126,12 @@ private val DarkPalette = NeoPalette(
     onAccent = Ink,
 )
 
+private val AmoledPalette = DarkPalette.copy(
+    paper = Color.Black,
+    card = Color(0xFF0D0D0D),
+    creamDim = Color(0xFF1B1B1B),
+)
+
 val LocalNeoPalette = staticCompositionLocalOf { LightPalette }
 
 /** Anton: the heavy condensed display face used for every headline. */
@@ -196,16 +202,26 @@ private val NeoMaterialShapes = Shapes(
 
 private val LightScheme = scheme(LightPalette, dark = false)
 private val DarkScheme = scheme(DarkPalette, dark = true)
+private val AmoledScheme = scheme(AmoledPalette, dark = true)
 
 @Composable
 fun StikrTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    amoled: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val palette = if (darkTheme) DarkPalette else LightPalette
+    val palette = when {
+        amoled -> AmoledPalette
+        darkTheme -> DarkPalette
+        else -> LightPalette
+    }
     CompositionLocalProvider(LocalNeoPalette provides palette) {
         MaterialTheme(
-            colorScheme = if (darkTheme) DarkScheme else LightScheme,
+            colorScheme = when {
+                amoled -> AmoledScheme
+                darkTheme -> DarkScheme
+                else -> LightScheme
+            },
             shapes = NeoMaterialShapes,
             typography = NeoTypography,
             content = content,

@@ -95,6 +95,21 @@ class ScreenRenderTest {
     }
 
     @Test
+    fun homePacksAmoled() {
+        val packs = listOf(packFixture("pack-2", "Faces"), packFixture("pack-1", "My stickers"))
+        compose.setContent {
+            StikrTheme(darkTheme = true, amoled = true) {
+                HomeScreen(
+                    packs = packs, onOpenPack = {}, onCreatePack = {}, onMakeSticker = {},
+                    onStartBatch = { _, _, _ -> }, onShowTour = {},
+                )
+            }
+        }
+        settle()
+        capture("home-packs-amoled")
+    }
+
+    @Test
     fun packScreenLight() {
         val pack = packFixture("pack-1", "My stickers")
         compose.setContent {

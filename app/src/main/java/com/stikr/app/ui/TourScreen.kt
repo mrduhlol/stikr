@@ -162,8 +162,8 @@ private val TourPages = listOf(
     TourPage(
         emoji = "\u2702\uFE0F",
         title = "Pick, cut, dress up",
-        body = "Pick a photo and stikr cuts the subject out automatically, then you add " +
-            "an outline and a caption.",
+        body = "Select photos together, then tap any sticker in its pack to edit. Keep the full photo " +
+            "or turn on auto cut-out, and add an outline or a caption.",
     ),
     TourPage(
         emoji = "\uD83D\uDCE6",
