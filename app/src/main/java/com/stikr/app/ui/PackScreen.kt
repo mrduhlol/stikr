@@ -1,5 +1,10 @@
 package com.stikr.app.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -73,6 +78,9 @@ fun PackScreen(
     onRename: (String) -> Unit,
     onDelete: () -> Unit,
     onAddSticker: () -> Unit,
+    onImportPhotos: (List<Uri>) -> Unit = {},
+    onEditSticker: (String) -> Unit = {},
+    importState: PackImportState? = null,
     onDeleteSticker: (String) -> Unit,
     onShareSticker: (String) -> Unit,
     onExport: () -> Unit,
@@ -89,6 +97,20 @@ fun PackScreen(
     val whatsAppInstalled = remember { PackExporter.isWhatsAppInstalled(context) }
     val count = pack.stickerCount
     val full = count >= PackRepository.MAX_WHATSAPP_STICKERS
+    val remaining = (PackRepository.MAX_WHATSAPP_STICKERS - count).coerceAtLeast(0)
+    val importing = importState?.packId == pack.id
+    val multiplePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(maxItems = remaining.coerceAtLeast(2)),
+    ) { uris -> if (uris.isNotEmpty()) onImportPhotos(uris.take(remaining)) }
+    val singlePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) onImportPhotos(listOf(uri))
+    }
+    val pickPhotos: () -> Unit = {
+        if (!full && !importing) {
+            val request = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            if (remaining == 1) singlePicker.launch(request) else multiplePicker.launch(request)
+        }
+    }
     val bars = WindowInsets.systemBars.asPaddingValues()
 
     Box(modifier = Modifier.fillMaxSize().background(palette.paper)) {
@@ -114,13 +136,22 @@ fun PackScreen(
                 )
             }
 
+            if (importing) {
+                item(span = { GridItemSpan(maxLineSpan) }, key = "importing") {
+                    Column(Modifier.padding(vertical = 12.dp)) {
+                        Text("Adding photos · ${importState?.processed}/${importState?.total}", color = palette.ink)
+                        Spacer(Modifier.height(8.dp))
+                        NeoProgressBar(contentDescription = "Adding photos")
+                    }
+                }
+            }
             if (count == 0) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "empty", contentType = "empty") {
                     NeoEmptyState(
                         title = "No stickers yet",
-                        body = "Pick a photo — stikr cuts the subject out right on your phone.",
-                        action = "Add first sticker",
-                        onAction = onAddSticker,
+                        body = "Select up to 30 photos at once. Tap a sticker to edit it, add a caption, or remove its background.",
+                        action = "Select photos",
+                        onAction = pickPhotos,
                         modifier = Modifier.padding(top = 8.dp),
                         art = { EmptyArt() },
                     )
@@ -144,7 +175,7 @@ fun PackScreen(
             }
             if (!full) {
                 item(key = "add", contentType = "add") {
-                    AddTile(onClick = onAddSticker)
+                    AddTile(onClick = pickPhotos)
                 }
             }
         }
@@ -167,6 +198,10 @@ fun PackScreen(
                 file = dir.resolve(fileName),
                 number = number,
                 onDismiss = { openSticker = null },
+                onEdit = {
+                    openSticker = null
+                    onEditSticker(fileName)
+                },
                 onShare = {
                     openSticker = null
                     onShareSticker(fileName)
@@ -380,7 +415,7 @@ private fun StickerTile(file: File, number: Int, onClick: () -> Unit) {
             shadow = NeoDimens.shadowSmall + 1.dp,
             padding = PaddingValues(10.dp),
             onClick = onClick,
-            onClickLabel = "Share or delete",
+            onClickLabel = "Edit, share or delete",
         ) {
             StickerImage(
                 file = file,
@@ -426,7 +461,7 @@ private fun AddTile(onClick: () -> Unit) {
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "ADD",
+                    text = "ADD PHOTOS",
                     style = MaterialTheme.typography.labelMedium,
                     color = palette.onAccent,
                 )
@@ -470,13 +505,14 @@ private fun StickerSheet(
     number: Int,
     onDismiss: () -> Unit,
     onShare: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val palette = Neo.palette
     NeoDialog(
         onDismiss = onDismiss,
         kicker = "Sticker ${number.toString().padStart(2, '0')}",
-        title = "Share or delete",
+        title = "Make it yours",
         body = {
             Box(
                 modifier = Modifier
@@ -494,6 +530,13 @@ private fun StickerSheet(
             ) {
                 StickerImage(file = file, contentDescription = "Sticker $number", modifier = Modifier.fillMaxSize())
             }
+            Spacer(Modifier.height(16.dp))
+            NeoButton(
+                text = "Edit sticker",
+                icon = Icons.Default.Edit,
+                onClick = onEdit,
+                modifier = Modifier.fillMaxWidth(),
+            )
         },
         actions = {
             NeoOutlinedButton(

@@ -22,16 +22,16 @@ Current version **v0.1**. APK approximately **7.9 MB**. Free, for Android 8.0 an
 
 | Your photo | Your sticker |
 | :--- | :--- |
-| **Cut out the subject** | ML Kit subject segmentation runs on device. Google Play services fetches the model once. If cut-out is unavailable, keep the full photo. |
+| **Cut out the subject** | Auto cut-out is off by default. Turn it on in the editor; ML Kit subject segmentation runs on device. Google Play services fetches the model once. If cut-out is unavailable, keep the full photo. |
 | **Add the sticker outline** | White or ink, with adjustable thickness. |
 | **Say something** | Optional caption in cream, ink, butter, or cherry, at the top or bottom. |
 | **Take the tour** | Three short pages on the first launch: photos in, stickers out; pick, cut, dress up; packs, ready for WhatsApp. The **info (ⓘ)** button in the home header replays them. |
-| **Keep a pack** | Create, rename, and delete packs. Add and delete stickers. A pack holds at most 30 stickers, WhatsApp's limit, so a full pack offers **Save into a new pack**. |
+| **Keep a pack** | Create, rename, and delete packs. Select up to 30 photos together, then tap a sticker and choose **Edit sticker** to change it in place. Add and delete stickers. A pack holds at most 30 stickers, WhatsApp's limit, so a full pack offers **Save into a new pack**. |
 | **Make a batch** | Pick as many photos as you like. stikr makes a sticker from each one and splits the run into packs of at most 30, with a title and an author you set once. |
 | **Send it to WhatsApp** | Import a pack of 3–30 stickers through the standard sticker-pack contract. Works with WhatsApp and WhatsApp Business. |
 | **Share one anywhere** | Send a sticker as a PNG through Android's normal share sheet. |
 | **Keep it local** | No sign-in, uploads, analytics, or telemetry. Cut-out requires Google Play services; everything else works fully offline. |
-| **Light or dark** | The sticker-book look follows your phone's theme. |
+| **Choose your appearance** | Open **Settings** at the top right for **Light**, **Dark**, **AMOLED** (pure black), or **System**. Your choice is remembered. |
 
 Static stickers only. A tray-icon picker, multiple subjects, extra caption fonts,
 and emoji suggestions are not shipped. Photos come from the system photo picker;
@@ -53,18 +53,20 @@ Uninstalling removes local packs, so share stickers you want to keep first.
 
 ## **Make a sticker**
 
-1. Open **stikr** and tap **Make a sticker**, or create a pack first.
-2. Pick a photo. stikr cuts out the subject automatically when available.
+1. Open **stikr** and tap **Edit a single photo**, or create a pack first.
+2. Pick a photo. The full photo is kept by default; turn on **Auto cut-out** if you want to remove its background.
 3. Adjust the **outline**, add a **caption** if you want, and tap
    **Add to “*pack name*”**.
 4. With 3–30 stickers in a pack, tap **Add to WhatsApp** at the bottom of the
    pack screen to import it. To send one image, tap the sticker and choose
    **Share**.
-5. For a pile of photos, tap **New batch** on home, set a **title** and an
+5. For a pile of photos, tap **Select photos** on home, set a **title** and an
    **author**, and pick as many photos as you like. stikr makes a sticker from
    each one and splits the run into packs of at most 30. You can stop a run
    half-way — then nothing is kept. A full pack in the editor offers **Save
    into a new pack**.
+
+Inside a pack, **Select photos** adds up to its remaining 30-sticker capacity in one selection. Tap any sticker and choose **Edit sticker**, then **Save changes** to replace it. New stickers keep private originals and edit settings for later changes; older stickers without originals reopen their saved image.
 
 The cut-out model downloads on first use through Google Play services.
 When cut-out is unavailable, stikr falls back to the full photo with the toggle exposed.

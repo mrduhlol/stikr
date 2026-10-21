@@ -245,15 +245,15 @@ class BatchEngineTest {
     }
 
     @Test
-    fun cutoutUnavailableKeepsFullPhoto() {
+    fun batchKeepsFullPhotoAndDoesNotRunAutoCutoutByDefault() {
         val vm = viewModel(true, true, true)
-        vm.subjectCutout = { null }
+        vm.subjectCutout = { error("Auto cutout must be opt-in") }
 
         vm.startBatch("Keepers", "Ada", uris(3))
         val state = awaitBatch(vm)
 
         assertEquals(3, state.saved)
-        assertEquals(3, state.fellBack)
+        assertEquals(0, state.fellBack)
         assertEquals(0, state.failed)
 
         val pack = repo().listPacks().single()

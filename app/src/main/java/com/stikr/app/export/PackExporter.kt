@@ -23,44 +23,39 @@ object PackExporter {
 
     fun isWhatsAppInstalled(context: Context): Boolean = WA_PACKAGES.any { isInstalled(context, it) }
 
-    /** Writes tray.webp (the 96x96 pack icon) from the first sticker, so exports are valid. */
+    /** Writes a PNG tray icon (96x96), matching the WhatsApp asset contract. */
     suspend fun ensureTray(context: Context, repo: PackRepository, pack: StickerPack): StickerPack =
         withContext(Dispatchers.IO) {
             val first = repo.stickerFile(pack.id, pack.stickers.firstOrNull().orEmpty()) ?: return@withContext pack
             val existing = pack.trayImage?.let { repo.stickerFile(pack.id, it) }
-            if (existing != null && existing.length() <= StickerCodec.MAX_ICON_BYTES &&
+            if (existing != null && existing.extension == "png" && existing.length() in 1..StickerCodec.MAX_ICON_BYTES &&
                 existing.lastModified() >= first.lastModified()
             ) return@withContext pack
             val bitmap = BitmapFactory.decodeFile(first.path) ?: return@withContext pack
             val tray = StickerRenderer.renderTray(bitmap)
             bitmap.recycle()
-            val bytes = StickerCodec.encodeWebp(tray, StickerCodec.MAX_ICON_BYTES)
+            val bytes = StickerCodec.encodePng(tray)
             tray.recycle()
-            repo.setTrayImage(pack.id, bytes) ?: pack
+            check(bytes.size <= StickerCodec.MAX_ICON_BYTES) { "Tray icon exceeds WhatsApp size limit" }
+            repo.setTrayImage(pack.id, bytes, "tray.png") ?: pack
         }
 
-    /** Opens WhatsApp on this pack's import screen. False when WhatsApp is missing. */
-    fun launchWhatsApp(context: Context, pack: StickerPack): Boolean {
-        if (!isWhatsAppInstalled(context)) return false
-        val base = Intent(WA_ACTION)
+    /**
+     * Launch this from an Activity using StartActivityForResult. WhatsApp uses the
+     * calling Activity to identify the source app and returns import errors in
+     * `validation_error`; an Application-context NEW_TASK launch loses both.
+     */
+    fun createWhatsAppIntent(context: Context, pack: StickerPack): Intent? {
+        val installed = WA_PACKAGES.filter { isInstalled(context, it) }
+        if (installed.isEmpty()) return null
+        val intent = Intent(WA_ACTION)
             .putExtra("sticker_pack_id", pack.id)
             .putExtra("sticker_pack_authority", authority(context))
-            .putExtra("sticker_pack_name", pack.name)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        for (pkg in WA_PACKAGES) {
-            if (!isInstalled(context, pkg)) continue
-            try {
-                context.startActivity(Intent(base).setPackage(pkg))
-                return true
-            } catch (_: Exception) {
-                // try the next package
-            }
-        }
-        return try {
-            context.startActivity(base)
-            true
-        } catch (_: Exception) {
-            false
+            .putExtra("sticker_pack_name", pack.name.take(128))
+        return if (installed.size == 1) {
+            intent.setPackage(installed.single())
+        } else {
+            Intent.createChooser(intent, "Add to WhatsApp")
         }
     }
 

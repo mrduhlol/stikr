@@ -38,16 +38,17 @@ signed in CI with the persistent repo keystore whenever a `v*` tag is pushed.
 
 ## Capabilities and Constraints
 
-Confirmed in v0: photo picker; on-device auto cut-out using ML Kit subject
+Confirmed: photo picker; on-device auto cut-out (off by default) using ML Kit subject
 segmentation (model fetched by Google Play services on first use; falls back to
 the full photo when unavailable, with the toggle exposed); outline in white or
 ink with adjustable thickness; optional caption in four colours (cream, ink,
 butter, cherry), top or bottom; packs with create, rename, delete; add and
-delete stickers; export a pack to WhatsApp (3–30 stickers per pack) from a
+delete stickers; import up to 30 photos at once into a pack; edit and replace
+existing stickers with private originals and saved edit settings; export a pack to WhatsApp (3–30 stickers per pack) from a
 pinned Add to WhatsApp bar at the bottom of the pack screen; share a
-single sticker as a PNG through the share sheet; light and dark theme in the
-sticker-book look (cream paper, ink outlines, hard shadows, pastel cards,
-Anton display type); a three-page first-run tour shown once on the first
+single sticker as a PNG through the share sheet; persistent System, Light, Dark,
+and AMOLED appearance from the top-right Settings button; a restrained home
+library with actual sticker previews and accurate readiness counts; a three-page first-run tour shown once on the first
 launch and replayable from the home screen; batches that turn as many picked
 photos as the user likes into automatic packs of at most 30, with a title and
 an author set once and a run that can be stopped mid-way, keeping nothing;

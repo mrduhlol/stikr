@@ -106,7 +106,7 @@ fun EditorScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (state.source == null && !pickerOpened) {
+        if (state.source == null && state.editingFileName == null && !pickerOpened) {
             pickerOpened = true
             pickPhoto()
         }
@@ -134,7 +134,7 @@ fun EditorScreen(
                 .statusBarsPadding()
                 .padding(start = NeoDimens.gutter, end = NeoDimens.gutter + NeoDimens.shadow, top = 8.dp),
         ) {
-            TopBar(packName = packName, onBack = leave)
+            TopBar(packName = packName, editing = state.editingFileName != null, onBack = leave)
             Spacer(Modifier.height(18.dp))
 
             PreviewCard(state = state, onPickPhoto = pickPhoto)
@@ -155,7 +155,8 @@ fun EditorScreen(
         ConfirmDialog(
             kicker = "Not saved yet",
             title = "Discard this sticker?",
-            body = "The photo and your edits are dropped. Nothing has been added to " +
+            body = if (state.editingFileName != null) "Your unsaved changes will be discarded. The saved sticker stays in the pack."
+            else "The photo and your edits are dropped. Nothing has been added to " +
                 (if (packName.isNotEmpty()) "“$packName”." else "the pack."),
             confirmLabel = "Discard",
             dismissLabel = "Keep editing",
@@ -169,7 +170,7 @@ fun EditorScreen(
 }
 
 @Composable
-private fun TopBar(packName: String, onBack: () -> Unit) {
+private fun TopBar(packName: String, editing: Boolean, onBack: () -> Unit) {
     val palette = Neo.palette
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -182,7 +183,7 @@ private fun TopBar(packName: String, onBack: () -> Unit) {
         )
         Column(modifier = Modifier.padding(start = 14.dp)) {
             Text(
-                text = "NEW STICKER",
+                text = if (editing) "EDIT STICKER" else "NEW STICKER",
                 style = MaterialTheme.typography.headlineMedium,
                 color = palette.ink,
                 modifier = Modifier.semantics { heading() },
@@ -528,6 +529,7 @@ private fun BottomBar(
 
                 else -> NeoButton(
                     text = when {
+                        state.editingFileName != null -> "Save changes"
                         packName.isNotEmpty() -> "Add to “$packName”"
                         else -> "Add to pack"
                     },

@@ -16,7 +16,9 @@ import kotlin.random.Random
  *     pack_<id>/
  *       pack.json      — name, author, created, sticker file list
  *       stk_<id>.webp  — 512x512 sticker images
- *       tray.webp      — 96x96 pack icon, written when exporting
+ *       tray.png       — 96x96 pack icon, written when exporting
+ *       *.source.png   — private original photos, not exported
+ *       *.edit.json    — private editor settings
  *
  * Plain files and JSON keep the app dependency-free and the data inspectable.
  */
@@ -58,19 +60,84 @@ class PackRepository(private val root: File) {
         File(root, id).deleteRecursively()
     }
 
-    fun addSticker(packId: String, bytes: ByteArray, fileName: String = newStickerName()): StickerPack? =
+    fun addSticker(packId: String, bytes: ByteArray, fileName: String = newStickerName(), source: ByteArray? = null, editData: String? = null): StickerPack? =
         synchronized(lock) {
             val pack = readPack(File(root, packId)) ?: return null
+            if (pack.stickerCount >= MAX_WHATSAPP_STICKERS || pack.stickers.contains(fileName)) return null
             val file = File(root, packId).resolve(fileName)
             file.parentFile?.mkdirs()
             file.writeBytes(bytes)
+            source?.let { File(file.parentFile, "$fileName.source.png").writeBytes(it) }
+            editData?.let { File(file.parentFile, "$fileName.edit.json").writeText(it) }
             pack.copy(stickers = pack.stickers + fileName).also { writePack(it) }
         }
+
+    /** Replaces an existing sticker in place, including in a full pack. */
+    fun replaceSticker(packId: String, fileName: String, bytes: ByteArray, source: ByteArray? = null, editData: String? = null): StickerPack? =
+        synchronized(lock) {
+            val pack = readPack(File(root, packId)) ?: return null
+            if (fileName !in pack.stickers) return null
+            val dir = File(root, packId)
+            val updated = pack.copy(trayImage = pack.trayImage.takeUnless { pack.stickers.firstOrNull() == fileName })
+            val staging = Files.createTempDirectory(dir.toPath(), "replace_").toFile()
+            val changes = linkedMapOf(File(dir, fileName) to bytes)
+            source?.let { changes[File(dir, "$fileName.source.png")] = it }
+            editData?.let { changes[File(dir, "$fileName.edit.json")] = it.toByteArray(Charsets.UTF_8) }
+            val backups = linkedMapOf<File, File?>()
+            val committed = mutableListOf<File>()
+            try {
+                // Stage every byte and backup before touching any live editor asset.
+                (changes.keys + File(dir, PACK_FILE)).forEachIndexed { index, target ->
+                    check(!target.exists() || target.isFile) { "Sticker asset is not a file: ${target.name}" }
+                    backups[target] = if (target.exists()) File(staging, "backup_$index").also {
+                        Files.copy(target.toPath(), it.toPath())
+                    } else null
+                }
+                val staged = changes.entries.mapIndexed { index, (target, content) ->
+                    target to File(staging, "new_$index").apply { writeBytes(content) }
+                }
+                staged.forEach { (target, temp) ->
+                    Files.move(temp.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+                    committed += target
+                }
+                // Include metadata in rollback even if its atomic move succeeds before a later failure.
+                committed += File(dir, PACK_FILE)
+                writePack(updated)
+                updated
+            } catch (failure: Exception) {
+                committed.forEach { target ->
+                    try {
+                        val backup = backups[target]
+                        if (backup == null) Files.deleteIfExists(target.toPath())
+                        else Files.copy(backup.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                    } catch (rollbackFailure: Exception) {
+                        failure.addSuppressed(rollbackFailure)
+                    }
+                }
+                metadata.remove(packId)
+                throw failure
+            } finally {
+                staging.deleteRecursively()
+            }
+        }
+
+    /** Private editor sources are never exposed by the WhatsApp content provider. */
+    fun sourceFile(packId: String, fileName: String): File? = synchronized(lock) {
+        val sticker = stickerFile(packId, fileName) ?: return null
+        File(sticker.parentFile, "$fileName.source.png").takeIf { it.isFile }
+    }
+
+    fun editData(packId: String, fileName: String): String? = synchronized(lock) {
+        val sticker = stickerFile(packId, fileName) ?: return null
+        File(sticker.parentFile, "$fileName.edit.json").takeIf { it.isFile }?.readText()
+    }
 
     fun deleteSticker(packId: String, fileName: String): StickerPack? = synchronized(lock) {
         val pack = readPack(File(root, packId)) ?: return null
         if (!pack.stickers.contains(fileName)) return pack
         File(root, packId).resolve(fileName).delete()
+        File(root, packId).resolve("$fileName.source.png").delete()
+        File(root, packId).resolve("$fileName.edit.json").delete()
         pack.copy(
             stickers = pack.stickers - fileName,
             // The generated tray represents the first sticker.

@@ -1,6 +1,8 @@
 package com.stikr.app.export
 
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -10,11 +12,13 @@ import com.stikr.app.render.StickerCodec
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
@@ -23,6 +27,44 @@ import java.io.File
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34])
 class PackExporterTest {
+    @Test
+    fun importIntentKeepsTheActivityResultHandshakeAndPackIdentity() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        shadowOf(context.packageManager).installPackage(PackageInfo().apply { packageName = "com.whatsapp" })
+        val pack = PackRepository(File(context.cacheDir, "intent-packs")).createPack("Friends")
+        val intent = requireNotNull(PackExporter.createWhatsAppIntent(context, pack))
+        assertEquals("com.whatsapp.intent.action.ENABLE_STICKER_PACK", intent.action)
+        assertEquals("com.whatsapp", intent.`package`)
+        assertEquals(pack.id, intent.getStringExtra("sticker_pack_id"))
+        assertEquals(PackExporter.authority(context), intent.getStringExtra("sticker_pack_authority"))
+        assertEquals(pack.name, intent.getStringExtra("sticker_pack_name"))
+        assertEquals("Import must launch from the current Activity for a result", 0, intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    @Test
+    fun importSupportsWhatsAppBusinessAndMissingInstallations() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val pack = PackRepository(File(context.cacheDir, "intent-packs")).createPack("Friends")
+        assertNull(PackExporter.createWhatsAppIntent(context, pack))
+        shadowOf(context.packageManager).installPackage(PackageInfo().apply { packageName = "com.whatsapp.w4b" })
+        assertEquals("com.whatsapp.w4b", PackExporter.createWhatsAppIntent(context, pack)?.`package`)
+    }
+
+    @Test
+    fun bothWhatsAppAppsOfferAChooser() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        listOf("com.whatsapp", "com.whatsapp.w4b").forEach { name ->
+            shadowOf(context.packageManager).installPackage(PackageInfo().apply { packageName = name })
+        }
+        val pack = PackRepository(File(context.cacheDir, "intent-packs")).createPack("Friends")
+        val chooser = requireNotNull(PackExporter.createWhatsAppIntent(context, pack))
+        assertEquals(Intent.ACTION_CHOOSER, chooser.action)
+        val target = chooser.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)!!
+        assertEquals("com.whatsapp.intent.action.ENABLE_STICKER_PACK", target.action)
+        assertNull(target.`package`)
+        assertEquals(0, chooser.flags and Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
     @Test
     fun reusesTrayUntilTheFirstStickerIsDeleted() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -33,10 +75,13 @@ class PackExporterTest {
         bitmap.eraseColor(Color.RED)
         repo.addSticker(pack.id, StickerCodec.encodeWebp(bitmap), "red.webp")
         bitmap.eraseColor(Color.BLUE)
-        val two = repo.addSticker(pack.id, StickerCodec.encodeWebp(bitmap), "blue.webp")!!
+        repo.addSticker(pack.id, StickerCodec.encodeWebp(bitmap), "blue.webp")!!
         bitmap.recycle()
-        val prepared = PackExporter.ensureTray(context, repo, two)
+        val legacy = repo.setTrayImage(pack.id, byteArrayOf(1, 2, 3), "tray.webp")!!
+        val prepared = PackExporter.ensureTray(context, repo, legacy)
+        assertEquals("tray.png", prepared.trayImage)
         val trayFile = repo.stickerFile(pack.id, prepared.trayImage!!)!!
+        assertTrue(trayFile.readBytes().take(8).toByteArray().contentEquals(byteArrayOf(0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)))
         val modified = trayFile.lastModified()
         val again = PackExporter.ensureTray(context, repo, prepared)
         assertSame("unchanged exports must reuse the prepared pack", prepared, again)
