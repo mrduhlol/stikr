@@ -16,6 +16,7 @@ object AppSounds {
     private val mutableEnabled = MutableStateFlow(true)
     val enabled: StateFlow<Boolean> = mutableEnabled.asStateFlow()
     private var preferences: SharedPreferences? = null
+    private var initializedFor: Context? = null
     private var audioManager: AudioManager? = null
     private var pool: SoundPool? = null
     private val loaded = mutableSetOf<Int>()
@@ -27,8 +28,13 @@ object AppSounds {
 
     @Synchronized
     fun initialize(context: Context) {
-        if (preferences != null) return
         val app = context.applicationContext
+        if (preferences != null && initializedFor === app) return
+        pool?.release()
+        pool = null
+        loaded.clear()
+        streams.clear()
+        initializedFor = app
         preferences = app.getSharedPreferences("app_sounds", Context.MODE_PRIVATE)
         mutableEnabled.value = preferences!!.getBoolean("enabled", true)
         audioManager = app.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
