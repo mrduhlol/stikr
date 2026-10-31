@@ -15,6 +15,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.stikr.app.R
 import com.stikr.app.audio.AppSounds
+import com.stikr.app.ui.neo.Neo
 
 @Composable
 fun SoundToggle(modifier: Modifier = Modifier) {
@@ -29,6 +30,7 @@ fun SoundToggle(modifier: Modifier = Modifier) {
     ) {
         Icon(
             painter = painterResource(if (enabled) R.drawable.ic_sound_on else R.drawable.ic_sound_off),
+            tint = Neo.palette.ink,
             contentDescription = if (enabled) "Mute sounds" else "Unmute sounds",
             modifier = Modifier.size(22.dp),
         )
