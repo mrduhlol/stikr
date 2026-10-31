@@ -29,8 +29,9 @@ import java.io.File
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34])
 class PackExporterTest {
-    private fun exportable(repository: PackRepository, name: String) = repository.createPack(name).also { pack ->
+    private fun exportable(repository: PackRepository, name: String) = repository.createPack(name).let { pack ->
         repeat(3) { repository.addSticker(pack.id, byteArrayOf(it.toByte()), "s$it.webp") }
+        requireNotNull(repository.getPack(pack.id))
     }
     @Test
     fun importIntentKeepsTheActivityResultHandshakeAndPackIdentity() {
