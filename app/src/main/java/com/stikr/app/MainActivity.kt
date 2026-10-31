@@ -24,8 +24,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings = remember { AppearanceSettings(applicationContext) }
             val mode by settings.mode.collectAsStateWithLifecycle()
-            val dark = mode == AppearanceMode.DARK || mode == AppearanceMode.AMOLED ||
-                (mode == AppearanceMode.SYSTEM && isSystemInDarkTheme())
+            // The approved collection surface is dark, including after an upgrade
+            // from an older build with a saved light/system appearance choice.
+            val dark = true
             SideEffect {
                 val bars = if (dark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
                     else SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
