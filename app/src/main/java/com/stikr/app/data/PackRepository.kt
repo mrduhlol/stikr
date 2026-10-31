@@ -32,27 +32,59 @@ class PackRepository(private val root: File) {
     fun listPacks(): List<StickerPack> = synchronized(lock) {
         val dirs = root.listFiles { file -> file.isDirectory }.orEmpty()
         metadata.keys.retainAll(dirs.map { it.name }.toSet())
-        dirs.mapNotNull { readPack(it) }.sortedByDescending { it.createdAt }
+        val packs = dirs.mapNotNull { readPack(it) }.sortedByDescending { it.createdAt }
+        packs.mapIndexed { index, pack ->
+            if (pack.serialNumber > 0 && pack.displayId.isNotBlank()) pack else pack.copy(
+                serialNumber = if (pack.serialNumber > 0) pack.serialNumber else packs.size - index,
+                displayId = pack.displayId.ifBlank { uniqueDisplayId() },
+            ).also { writePack(it) }
+        }
     }
 
     fun getPack(id: String): StickerPack? = synchronized(lock) { readPack(File(root, id)) }
 
     fun createPack(name: String, author: String = DEFAULT_AUTHOR): StickerPack = synchronized(lock) {
+        createPackLocked(name, author)
+    }
+
+    private fun createPackLocked(name: String, author: String, isSingles: Boolean = false): StickerPack {
+        val serial = (listPacks().maxOfOrNull { it.serialNumber } ?: 0) + 1
         val pack = StickerPack(
             id = newPackId(),
             name = name.trim().ifEmpty { "Untitled pack" },
             author = author,
             createdAt = System.currentTimeMillis(),
             stickers = emptyList(),
+            isSingles = isSingles,
+            serialNumber = serial,
+            displayId = uniqueDisplayId(),
         )
         writePack(pack)
-        pack
+        return pack
+    }
+
+    /** Creates or returns the newest shared singles pack, rotating at WhatsApp capacity. */
+    fun getOrCreateSingles(starters: List<ByteArray>): StickerPack = synchronized(lock) {
+        val existing = listPacks().filter { it.isSingles }.maxByOrNull { it.serialNumber }
+        if (existing != null && existing.userStickerCount < MAX_WHATSAPP_STICKERS) return@synchronized existing
+        val name = if (existing == null) "Stikr" else "Stikr ${listPacks().count { it.isSingles } + 1}"
+        val pack = createPackLocked(name, DEFAULT_AUTHOR, isSingles = true)
+        starters.forEachIndexed { index, bytes ->
+            addSticker(pack.id, bytes, fileName = "starter_$index.webp")?.let { }
+        }
+        readPack(File(root, pack.id)) ?: pack
     }
 
     fun renamePack(id: String, name: String): StickerPack? = synchronized(lock) {
         val pack = readPack(File(root, id)) ?: return null
         if (name.isBlank()) return pack
-        pack.copy(name = name.trim()).also { writePack(it) }
+        pack.copy(name = name.trim(), contentVersion = pack.contentVersion + 1).also { writePack(it) }
+    }
+
+    fun renamePackAuthor(id: String, author: String): StickerPack? = synchronized(lock) {
+        val pack = readPack(File(root, id)) ?: return null
+        if (author.isBlank()) return pack
+        pack.copy(author = author.trim(), contentVersion = pack.contentVersion + 1).also { writePack(it) }
     }
 
     fun deletePack(id: String): Boolean = synchronized(lock) {
@@ -69,7 +101,17 @@ class PackRepository(private val root: File) {
             file.writeBytes(bytes)
             source?.let { File(file.parentFile, "$fileName.source.png").writeBytes(it) }
             editData?.let { File(file.parentFile, "$fileName.edit.json").writeText(it) }
-            pack.copy(stickers = pack.stickers + fileName).also { writePack(it) }
+            var updated = pack.copy(
+                stickers = pack.stickers + fileName,
+                starterStickers = if (fileName.startsWith("starter_") && pack.isSingles) pack.starterStickers + fileName else pack.starterStickers,
+                contentVersion = pack.contentVersion + 1,
+            )
+            if (updated.isSingles && updated.userStickerCount >= 3 && updated.starterStickers.isNotEmpty()) {
+                updated.starterStickers.forEach { starter -> File(root, packId).resolve(starter).delete() }
+                updated = updated.copy(stickers = updated.stickers - updated.starterStickers.toSet(), starterStickers = emptyList(), trayImage = null, contentVersion = updated.contentVersion + 1)
+            }
+            writePack(updated)
+            updated
         }
 
     /** Replaces an existing sticker in place, including in a full pack. */
@@ -78,7 +120,7 @@ class PackRepository(private val root: File) {
             val pack = readPack(File(root, packId)) ?: return null
             if (fileName !in pack.stickers) return null
             val dir = File(root, packId)
-            val updated = pack.copy(trayImage = pack.trayImage.takeUnless { pack.stickers.firstOrNull() == fileName })
+            val updated = pack.copy(trayImage = pack.trayImage.takeUnless { pack.stickers.firstOrNull() == fileName }, contentVersion = pack.contentVersion + 1)
             val staging = Files.createTempDirectory(dir.toPath(), "replace_").toFile()
             val changes = linkedMapOf(File(dir, fileName) to bytes)
             source?.let { changes[File(dir, "$fileName.source.png")] = it }
@@ -142,14 +184,21 @@ class PackRepository(private val root: File) {
             stickers = pack.stickers - fileName,
             // The generated tray represents the first sticker.
             trayImage = pack.trayImage?.takeUnless { it == fileName || pack.stickers.firstOrNull() == fileName },
+            contentVersion = pack.contentVersion + 1,
         ).also { writePack(it) }
+    }
+
+    fun setPackThumbnail(packId: String, bytes: ByteArray): StickerPack? = synchronized(lock) {
+        val pack = readPack(File(root, packId)) ?: return null
+        File(root, packId).resolve(THUMBNAIL_FILE).writeBytes(bytes)
+        pack.copy(thumbnailImage = THUMBNAIL_FILE, contentVersion = pack.contentVersion + 1).also { writePack(it) }
     }
 
     fun setTrayImage(packId: String, bytes: ByteArray, fileName: String = TRAY_FILE): StickerPack? =
         synchronized(lock) {
             val pack = readPack(File(root, packId)) ?: return null
             File(root, packId).resolve(fileName).writeBytes(bytes)
-            pack.copy(trayImage = fileName).also { writePack(it) }
+            pack.copy(trayImage = fileName, contentVersion = pack.contentVersion + 1).also { writePack(it) }
         }
 
     /**
@@ -182,6 +231,7 @@ class PackRepository(private val root: File) {
             val cached = metadata[dir.name]?.takeIf { it.stamp == version }
             val pack = cached?.pack ?: run {
                 val json = JSONObject(meta.readText())
+                val needsDisplayIdMigration = json.optString("displayId", "").isEmpty()
                 StickerPack(
                     id = json.getString("id"),
                     name = json.optString("name", "Untitled pack"),
@@ -193,7 +243,16 @@ class PackRepository(private val root: File) {
                         }
                     } ?: emptyList(),
                     trayImage = json.optString("trayImage").takeIf { it.isNotEmpty() },
-                ).also { metadata[dir.name] = CachedPack(version, it) }
+                    isSingles = json.optBoolean("isSingles", false),
+                    serialNumber = json.optInt("serialNumber", 0),
+                    displayId = json.optString("displayId", "").ifEmpty { uniqueDisplayId() },
+                    thumbnailImage = json.optString("thumbnailImage").takeIf { it.isNotEmpty() },
+                    starterStickers = json.optJSONArray("starterStickers")?.let { a -> (0 until a.length()).map { a.optString(it) } } ?: emptyList(),
+                    contentVersion = json.optLong("contentVersion", 1L),
+                ).also {
+                    metadata[dir.name] = CachedPack(version, it)
+                    if (needsDisplayIdMigration) writePack(it)
+                }
             }
             // Serving one file only needs to stat that file, not every asset in the pack.
             if (!filterMissingFiles) return pack
@@ -217,6 +276,12 @@ class PackRepository(private val root: File) {
             .put("createdAt", pack.createdAt)
             .put("stickers", JSONArray(pack.stickers))
             .put("trayImage", pack.trayImage ?: "")
+            .put("isSingles", pack.isSingles)
+            .put("serialNumber", pack.serialNumber)
+            .put("displayId", pack.displayId)
+            .put("thumbnailImage", pack.thumbnailImage ?: "")
+            .put("starterStickers", JSONArray(pack.starterStickers))
+            .put("contentVersion", pack.contentVersion)
         val target = File(dir, PACK_FILE)
         val temp = File(dir, "$PACK_FILE.tmp")
         temp.writeText(json.toString())
@@ -230,9 +295,19 @@ class PackRepository(private val root: File) {
     private fun newStickerName(): String =
         "stk_" + System.currentTimeMillis().toString(36) + "_" + Random.nextInt(0xFFFF).toString(16) + ".webp"
 
+    private fun uniqueDisplayId(): String {
+        val used = root.listFiles { file -> file.isDirectory }.orEmpty().mapNotNull { dir ->
+            runCatching { JSONObject(File(dir, PACK_FILE).readText()).optString("displayId") }.getOrNull()
+        }.toSet()
+        var candidate: String
+        do { candidate = Random.nextInt(10_000_000, 100_000_000).toString() } while (candidate in used)
+        return candidate
+    }
+
     companion object {
         const val PACK_FILE = "pack.json"
         const val TRAY_FILE = "tray.webp"
+        const val THUMBNAIL_FILE = "thumbnail.png"
         const val DEFAULT_AUTHOR = "stikr"
         const val MIN_WHATSAPP_STICKERS = 3
         const val MAX_WHATSAPP_STICKERS = 30

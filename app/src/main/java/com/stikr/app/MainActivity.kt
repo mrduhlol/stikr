@@ -18,6 +18,8 @@ import com.stikr.app.ui.theme.StikrTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.stikr.app.audio.AppSounds.initialize(applicationContext)
+        com.stikr.app.render.StickerTypography.initialize(applicationContext)
         enableEdgeToEdge()
         setContent {
             val settings = remember { AppearanceSettings(applicationContext) }

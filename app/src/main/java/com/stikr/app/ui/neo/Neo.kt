@@ -211,7 +211,7 @@ fun NeoButton(
             Spacer(Modifier.width(10.dp))
         }
         Text(
-            text = text.uppercase(),
+            text = text,
             style = textStyle,
             color = label,
             maxLines = 1,
@@ -270,7 +270,7 @@ fun NeoTextButton(
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = text.uppercase(),
+            text = text,
             style = MaterialTheme.typography.labelMedium.copy(textDecoration = TextDecoration.Underline),
             color = color,
         )
@@ -376,7 +376,7 @@ fun NeoSegmented(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = option.uppercase(),
+                    text = option,
                     style = MaterialTheme.typography.labelMedium,
                     color = if (selected) palette.paper else palette.ink,
                 )
@@ -513,7 +513,7 @@ fun NeoSwatch(
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            text = label.uppercase(),
+            text = label,
             style = MaterialTheme.typography.labelSmall,
             color = if (selected) palette.ink else palette.muted,
         )
@@ -602,7 +602,7 @@ fun NeoTag(
     text: String,
     modifier: Modifier = Modifier,
     fill: Color = Neo.palette.butter,
-    rotation: Float = -4f,
+    rotation: Float = 0f,
 ) {
     val palette = Neo.palette
     Box(
@@ -614,12 +614,12 @@ fun NeoTag(
                 shadowColor = palette.shadow,
                 shape = NeoShapes.tag,
                 borderWidth = NeoDimens.hairline,
-                shadowOffset = 2.dp,
+                shadowOffset = 0.dp,
             )
             .padding(horizontal = 8.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text.uppercase(), style = MaterialTheme.typography.labelSmall, color = palette.contentFor(fill))
+        Text(text, style = MaterialTheme.typography.labelSmall, color = palette.contentFor(fill))
     }
 }
 
@@ -639,7 +639,7 @@ fun NeoCount(text: String, modifier: Modifier = Modifier, fill: Color = Neo.pale
             )
             .padding(horizontal = 8.dp, vertical = 4.dp),
     ) {
-        Text(text.uppercase(), style = MaterialTheme.typography.labelMedium, color = palette.contentFor(fill))
+        Text(text, style = MaterialTheme.typography.labelMedium, color = palette.contentFor(fill))
     }
 }
 
@@ -655,7 +655,7 @@ fun NeoSectionHeader(
     Column(modifier = modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = title.uppercase(),
+                text = title,
                 style = MaterialTheme.typography.headlineMedium,
                 color = palette.ink,
                 modifier = Modifier
@@ -695,7 +695,7 @@ fun NeoStepLabel(number: Int, title: String, modifier: Modifier = Modifier) {
         }
         Spacer(Modifier.width(10.dp))
         Text(
-            text = title.uppercase(),
+            text = title,
             style = MaterialTheme.typography.labelLarge,
             color = palette.ink,
             modifier = Modifier.semantics { heading() },
@@ -717,41 +717,10 @@ fun StickerHeadline(
     wordGap: Dp = 12.dp,
     lineGap: Dp = 6.dp,
 ) {
-    val palette = Neo.palette
-    val style = remember(fontSize) {
-        TextStyle(fontFamily = Anton, fontSize = fontSize, lineHeight = fontSize * 1.02f, letterSpacing = 0.sp)
-    }
-    val words = remember(text) { text.split(" ").filter { it.isNotBlank() } }
+    Text(text, modifier = modifier.semantics { heading() },
+        style = MaterialTheme.typography.headlineLarge.copy(fontSize = fontSize, lineHeight = fontSize * 1.12f),
+        color = Neo.palette.ink)
 
-    FlowRow(
-        modifier = modifier.semantics(mergeDescendants = true) { heading() },
-        horizontalArrangement = Arrangement.spacedBy(wordGap),
-        verticalArrangement = Arrangement.spacedBy(lineGap),
-    ) {
-        words.forEach { word ->
-            val accent = accentWord != null &&
-                word.trim(',', '.', '!', '?').equals(accentWord, ignoreCase = true)
-            if (accent) {
-                Box(
-                    modifier = Modifier
-                        .padding(top = 4.dp, end = NeoDimens.shadow, bottom = NeoDimens.shadow)
-                        .rotate(-2.5f)
-                        .neoFrame(
-                            fill = palette.cherry,
-                            borderColor = palette.ink,
-                            shadowColor = palette.shadow,
-                            shape = NeoShapes.tag,
-                            shadowOffset = NeoDimens.shadow,
-                        )
-                        .padding(horizontal = 10.dp),
-                ) {
-                    Text(word.uppercase(), style = style, color = palette.onCherry)
-                }
-            } else {
-                Text(word.uppercase(), style = style, color = palette.ink)
-            }
-        }
-    }
 }
 
 /** The wordmark: the purple app mark as a tilted tile, then "stikr" in Anton. */
@@ -847,7 +816,7 @@ fun NeoDialog(
                             .padding(horizontal = 20.dp, vertical = 11.dp),
                     ) {
                         Text(
-                            text = kicker.uppercase(),
+                            text = kicker,
                             style = MaterialTheme.typography.labelMedium,
                             color = palette.contentFor(band),
                         )
@@ -861,7 +830,7 @@ fun NeoDialog(
                 }
                 Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 22.dp)) {
                     Text(
-                        text = title.uppercase(),
+                        text = title,
                         style = MaterialTheme.typography.headlineMedium,
                         color = palette.ink,
                         modifier = Modifier.semantics { heading() },
@@ -907,7 +876,7 @@ fun NeoTextField(
     Column(modifier = modifier.fillMaxWidth()) {
         if (label != null) {
             Text(
-                text = label.uppercase(),
+                text = label,
                 style = MaterialTheme.typography.labelMedium,
                 color = palette.muted,
             )
@@ -1011,7 +980,7 @@ fun NeoEmptyState(
             Spacer(Modifier.height(18.dp))
         }
         Text(
-            text = title.uppercase(),
+            text = title,
             style = MaterialTheme.typography.headlineMedium,
             color = palette.contentFor(fill),
             textAlign = TextAlign.Center,

@@ -33,6 +33,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -84,11 +90,14 @@ fun PackScreen(
     onShareSticker: (String) -> Unit,
     onExport: () -> Unit,
     exporting: Boolean = false,
+    onRenameAuthor: (String) -> Unit = {},
+    onThumbnail: () -> Unit = {},
 ) {
     val palette = Neo.palette
     val context = LocalContext.current
     val root = remember(context) { File(context.filesDir, "packs") }
     val dir = remember(root, pack.id) { root.resolve(pack.id) }
+    var showAuthor by rememberSaveable { mutableStateOf(false) }
     var showRename by rememberSaveable { mutableStateOf(false) }
     var showDelete by rememberSaveable { mutableStateOf(false) }
     var openSticker by rememberSaveable { mutableStateOf<String?>(null) }
@@ -111,7 +120,7 @@ fun PackScreen(
     }
     val bars = WindowInsets.systemBars.asPaddingValues()
 
-    Box(modifier = Modifier.fillMaxSize().background(palette.paper)) {
+    Box(modifier = Modifier.fillMaxSize().collectionBackground()) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
             modifier = Modifier.fillMaxSize(),
@@ -131,18 +140,16 @@ fun PackScreen(
                     onBack = onBack,
                     onRename = { showRename = true },
                     onDelete = { showDelete = true },
+                    onThumbnail = onThumbnail,
+                    onAuthor = { showAuthor = true },
                 )
             }
 
-            pack.stickers.firstOrNull()?.let { first ->
-                item(span = { GridItemSpan(maxLineSpan) }, key = "thumbnail") {
-                    NeoCard(
-                        modifier = Modifier.fillMaxWidth().height(220.dp),
-                        fill = palette.creamDim,
-                        padding = PaddingValues(24.dp),
-                    ) {
-                        StickerImage(dir.resolve(first), "${pack.name} thumbnail", Modifier.fillMaxSize())
-                    }
+            item(span = { GridItemSpan(maxLineSpan) }, key = "thumbnail") {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("by ${pack.author}", color = palette.muted, style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp))
+                    PackCollectionCard(pack, Modifier.width(260.dp), onClick = onThumbnail)
                 }
             }
 
@@ -238,9 +245,14 @@ fun PackScreen(
         )
     }
 
+    if (showAuthor) {
+        NameDialog(title = "Rename author", confirmLabel = "Save", initial = pack.author,
+            onDismiss = { showAuthor = false }, onConfirm = { showAuthor = false; onRenameAuthor(it) }, kicker = "Author")
+    }
+
     if (showRename) {
         NameDialog(
-            title = "Rename pack",
+            title = "Rename Title",
             kicker = "Pack name",
             confirmLabel = "Save",
             initial = pack.name,
@@ -271,54 +283,22 @@ fun PackScreen(
 }
 
 @Composable
-private fun TopBar(
-    pack: StickerPack,
-    onBack: () -> Unit,
-    onRename: () -> Unit,
-    onDelete: () -> Unit,
-) {
+private fun TopBar(pack: StickerPack, onBack: () -> Unit, onRename: () -> Unit,
+                    onDelete: () -> Unit, onThumbnail: () -> Unit, onAuthor: () -> Unit) {
     val palette = Neo.palette
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            NeoIconButton(
-                onClick = onBack,
-                icon = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-            )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 14.dp),
-            ) {
-                Text(
-                    text = pack.name.uppercase(),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = palette.ink,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.semantics { heading() },
-                )
-                Text(
-                    text = if (pack.stickerCount == 1) "1 STICKER" else "${pack.stickerCount} STICKERS",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = palette.muted,
-                )
+    var menu by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = palette.ink) }
+        Text(pack.name, style = MaterialTheme.typography.titleMedium, color = palette.ink,
+            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
+        IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Delete pack", tint = palette.muted) }
+        Box {
+            IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, "Pack options", tint = palette.ink) }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(text = { Text("Add thumbnail") }, onClick = { menu = false; onThumbnail() })
+                DropdownMenuItem(text = { Text("Rename Title") }, onClick = { menu = false; onRename() })
+                DropdownMenuItem(text = { Text("Rename author") }, onClick = { menu = false; onAuthor() })
             }
-            NeoIconButton(
-                onClick = onRename,
-                icon = Icons.Default.Edit,
-                contentDescription = "Rename pack",
-            )
-            Spacer(Modifier.width(NeoDimens.gapSmall))
-            NeoIconButton(
-                onClick = onDelete,
-                icon = Icons.Default.Delete,
-                contentDescription = "Delete pack",
-                fill = palette.pink,
-            )
         }
     }
 }
@@ -347,8 +327,8 @@ private fun ExportBar(
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(NeoDimens.border)
-                .background(palette.ink),
+                .height(1.dp)
+                .background(palette.muted.copy(alpha = .25f)),
         )
         Column(
             modifier = Modifier.padding(
@@ -384,29 +364,8 @@ internal fun WhatsAppPackAction(count: Int, exporting: Boolean, onExport: () -> 
             modifier = Modifier.padding(bottom = 10.dp),
         )
     }
-    if (exporting) {
-        // Same height as the button, so the band doesn't jump mid-export.
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 52.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Preparing pack…", style = MaterialTheme.typography.labelMedium)
-                Spacer(Modifier.height(10.dp))
-                NeoProgressBar(contentDescription = "Preparing pack for WhatsApp")
-            }
-        }
-    } else {
-        NeoButton(
-            text = "Add to WhatsApp",
-            onClick = onExport,
-            enabled = ready,
-            haptic = NeoHaptic.Confirm,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
+    SlideExport(enabled = ready, busy = exporting, onConfirm = onExport)
+
 }
 
 @Composable
@@ -421,7 +380,7 @@ private fun StickerTile(file: File, number: Int, onClick: () -> Unit) {
             // A paper well, not white, so white sticker outlines stay visible.
             fill = palette.creamDim,
             shape = NeoShapes.tile,
-            shadow = NeoDimens.shadowSmall + 1.dp,
+            shadow = 0.dp,
             padding = PaddingValues(10.dp),
             onClick = onClick,
             onClickLabel = "Edit, share or delete",
@@ -456,7 +415,7 @@ private fun AddTile(onClick: () -> Unit) {
             .aspectRatio(1f),
         fill = palette.butter,
         shape = NeoShapes.tile,
-        shadow = NeoDimens.shadowSmall + 1.dp,
+        shadow = 0.dp,
         onClick = onClick,
         onClickLabel = "Add sticker",
     ) {
@@ -470,7 +429,7 @@ private fun AddTile(onClick: () -> Unit) {
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "ADD PHOTOS",
+                    text = "Add photos",
                     style = MaterialTheme.typography.labelMedium,
                     color = palette.onAccent,
                 )

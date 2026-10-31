@@ -54,7 +54,11 @@ class MainViewModelTest {
             model.loadImage(Uri.fromFile(photo))
             await { model.editor.value?.ready == true }
             val oldPreview = model.editor.value!!.preview
-            val style = StickerRenderer.Style(outline = 32, caption = "latest")
+            val style = StickerRenderer.Style(
+                outline = 32, caption = "latest", roundedCorners = true,
+                captionFont = "serif", captionSize = 48,
+                captionBackground = Color.MAGENTA, captionTextColor = Color.YELLOW, captionBold = true,
+            )
             repeat(100) { model.setStyle(style.copy(outline = it % 33)) }
             model.setStyle(style)
             assertTrue("preview update should be deferred", oldPreview === model.editor.value!!.preview)
@@ -71,9 +75,42 @@ class MainViewModelTest {
             val pixel = result.getPixel(256, 40)
             assertTrue(Color.red(pixel) > 220 && Color.blue(pixel) > 220)
             result.recycle()
+            model.editSticker(pack.id, file)
+            await { model.editor.value?.ready == true }
+            val restored = model.editor.value!!.style
+            assertEquals(style.roundedCorners, restored.roundedCorners)
+            assertEquals(style.captionFont, restored.captionFont)
+            assertEquals(style.captionSize, restored.captionSize)
+            assertEquals(style.captionBackground, restored.captionBackground)
+            assertEquals(style.captionTextColor, restored.captionTextColor)
+            assertEquals(style.captionBold, restored.captionBold)
         } finally {
             store.clear()
         }
+    }
+
+    @Test
+    fun singleStickerEditorReusesTheSharedPackAndCreatesStartersOnlyOnce() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val root = File(app.filesDir, "packs").apply { deleteRecursively() }
+        val repository = PackRepository(root)
+        val model = MainViewModel(app)
+        val store = ViewModelStore().apply { put("singles", model) }
+        try {
+            var firstId: String? = null
+            model.startSingleSticker { firstId = it }
+            await { firstId != null && model.editor.value?.packId == firstId }
+            val first = repository.getPack(firstId!!)!!
+            assertTrue(first.isSingles)
+            assertEquals("Stikr", first.name)
+            assertEquals(2, first.stickerCount)
+            assertEquals(0, first.userStickerCount)
+            var secondId: String? = null
+            model.startSingleSticker { secondId = it }
+            await { secondId != null && model.editor.value?.packId == secondId }
+            assertEquals(firstId, secondId)
+            assertEquals(2, repository.getPack(firstId!!)!!.stickerCount)
+        } finally { store.clear() }
     }
 
     @Test
@@ -137,4 +174,28 @@ class MainViewModelTest {
             store.clear()
         }
     }
+    @Test
+    fun thumbnailPersistenceCompletesBeforeNavigationAndReportsFailureForRetry() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val root = File(app.filesDir, "packs").apply { deleteRecursively() }
+        val repository = PackRepository(root)
+        val pack = repository.createPack("Cover")
+        val model = MainViewModel(app)
+        val store = ViewModelStore().apply { put("cover", model) }
+        try {
+            var result: Boolean? = null
+            model.setPackThumbnail(pack.id, byteArrayOf(1, 2, 3)) { saved ->
+                assertNotNull(repository.getPack(pack.id)!!.thumbnailImage)
+                result = saved
+            }
+            await { result != null }
+            assertEquals(true, result)
+            result = null
+            model.setPackThumbnail("missing-pack", byteArrayOf(4)) { result = it }
+            await { result != null }
+            assertEquals(false, result)
+            assertTrue(model.message.value!!.contains("Your edits are still here"))
+        } finally { store.clear() }
+    }
+
 }

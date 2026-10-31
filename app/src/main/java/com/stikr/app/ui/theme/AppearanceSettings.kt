@@ -16,7 +16,7 @@ class AppearanceSettings(context: Context) {
     private val preferences = context.getSharedPreferences("appearance", Context.MODE_PRIVATE)
     private val _mode = MutableStateFlow(
         runCatching { AppearanceMode.valueOf(preferences.getString("mode", null).orEmpty()) }
-            .getOrDefault(AppearanceMode.SYSTEM),
+            .getOrDefault(AppearanceMode.DARK),
     )
     val mode = _mode.asStateFlow()
 

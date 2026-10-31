@@ -29,12 +29,15 @@ import java.io.File
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34])
 class PackExporterTest {
+    private fun exportable(repository: PackRepository, name: String) = repository.createPack(name).also { pack ->
+        repeat(3) { repository.addSticker(pack.id, byteArrayOf(it.toByte()), "s$it.webp") }
+    }
     @Test
     fun importIntentKeepsTheActivityResultHandshakeAndPackIdentity() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         shadowOf(context.packageManager).installPackage(PackageInfo().apply { packageName = "com.whatsapp" })
         assertTrue(PackExporter.isWhatsAppInstalled(context))
-        val pack = PackRepository(File(context.cacheDir, "intent-packs")).createPack("Friends")
+        val pack = exportable(PackRepository(File(context.cacheDir, "intent-packs")), "Friends")
         val intent = requireNotNull(PackExporter.createWhatsAppIntent(context, pack))
         assertEquals("com.whatsapp.intent.action.ENABLE_STICKER_PACK", intent.action)
         assertEquals("com.whatsapp", intent.`package`)
@@ -47,7 +50,7 @@ class PackExporterTest {
     @Test
     fun importSupportsWhatsAppBusinessAndMissingInstallations() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val pack = PackRepository(File(context.cacheDir, "intent-packs")).createPack("Friends")
+        val pack = exportable(PackRepository(File(context.cacheDir, "intent-packs")), "Friends")
         assertNull(PackExporter.createWhatsAppIntent(context, pack))
         assertTrue(!PackExporter.isWhatsAppInstalled(context))
         shadowOf(context.packageManager).installPackage(PackageInfo().apply { packageName = "com.whatsapp.w4b" })
@@ -66,7 +69,7 @@ class PackExporterTest {
                 exported = true
             }
         })
-        val pack = PackRepository(File(context.cacheDir, "handler-packs")).createPack("Friends")
+        val pack = exportable(PackRepository(File(context.cacheDir, "handler-packs")), "Friends")
         assertTrue(PackExporter.isWhatsAppInstalled(context))
         val intent = requireNotNull(PackExporter.createWhatsAppIntent(context, pack))
         assertEquals(action, intent.action)
@@ -81,13 +84,31 @@ class PackExporterTest {
         listOf("com.whatsapp", "com.whatsapp.w4b").forEach { name ->
             shadowOf(context.packageManager).installPackage(PackageInfo().apply { packageName = name })
         }
-        val pack = PackRepository(File(context.cacheDir, "intent-packs")).createPack("Friends")
+        val pack = exportable(PackRepository(File(context.cacheDir, "intent-packs")), "Friends")
         val chooser = requireNotNull(PackExporter.createWhatsAppIntent(context, pack))
         assertEquals(Intent.ACTION_CHOOSER, chooser.action)
         val target = chooser.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)!!
         assertEquals("com.whatsapp.intent.action.ENABLE_STICKER_PACK", target.action)
         assertNull(target.`package`)
         assertEquals(0, chooser.flags and Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    @Test
+    fun exportIdentityAndAuthorityStayStableForAnUpdatedPackAndRejectOverCapacity() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        shadowOf(context.packageManager).installPackage(PackageInfo().apply { packageName = "com.whatsapp" })
+        val repo = PackRepository(File(context.cacheDir, "stable-packs"))
+        val pack = exportable(repo, "Stable")
+        val first = PackExporter.createWhatsAppIntent(context, pack)!!
+        val changed = repo.addSticker(pack.id, byteArrayOf(8), "four.webp")!!
+        val repeated = PackExporter.createWhatsAppIntent(context, changed)!!
+        assertEquals(first.getStringExtra("sticker_pack_id"), repeated.getStringExtra("sticker_pack_id"))
+        assertEquals(first.getStringExtra("sticker_pack_authority"), repeated.getStringExtra("sticker_pack_authority"))
+        var rejected = false
+        try {
+            PackExporter.createWhatsAppIntent(context, changed.copy(stickers = changed.stickers + (0..26).map { "fake_$it.webp" }))
+        } catch (_: IllegalArgumentException) { rejected = true }
+        assertTrue(rejected)
     }
 
     @Test

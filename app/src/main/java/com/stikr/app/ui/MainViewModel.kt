@@ -150,6 +150,36 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Opens the editor against the shared singles pack, creating it on first use. */
+    fun startSingleSticker(onReady: (String) -> Unit) {
+        viewModelScope.launch {
+            val pack = storage { repo.getOrCreateSingles(starterStickerBytes()) }
+            if (pack == null) {
+                notify("Couldn't open single stickers")
+                return@launch
+            }
+            loadPacks()
+            startEditor(pack.id)
+            onReady(pack.id)
+        }
+    }
+
+    fun renamePackAuthor(packId: String, author: String) {
+        viewModelScope.launch {
+            if (storage { repo.renamePackAuthor(packId, author) } == null) notify("Couldn't rename the author")
+            loadPacks()
+        }
+    }
+
+    fun setPackThumbnail(packId: String, bytes: ByteArray, onComplete: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val saved = storage { repo.setPackThumbnail(packId, bytes) } != null
+            if (!saved) notify("Couldn't save the thumbnail. Your edits are still here; try again.")
+            loadPacks()
+            onComplete(saved)
+        }
+    }
+
     fun renamePack(packId: String, name: String) {
         viewModelScope.launch {
             if (storage { repo.renamePack(packId, name) } == null) notify("Couldn't rename the pack")
@@ -222,11 +252,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     _editor.value = _editor.value?.copy(
                         cutoutEnabled = json.optBoolean("cutout", false),
                         style = StickerRenderer.Style(
-                            outline = json.optInt("outline", 8),
+                            outline = json.optInt("outline", 3),
                             outlineColor = StickerRenderer.OutlineColor.valueOf(json.getString("outlineColor")),
                             caption = json.optString("caption"),
                             captionPosition = StickerRenderer.CaptionPosition.valueOf(json.getString("captionPosition")),
                             captionColor = StickerRenderer.CaptionColor.valueOf(json.getString("captionColor")),
+                            captionFont = json.optString("captionFont", "sans"),
+                            captionSize = json.optInt("captionSize", 40),
+                            captionBackground = json.optInt("captionBackground", android.graphics.Color.TRANSPARENT),
+                            captionTextColor = if (json.has("captionTextColor") && !json.isNull("captionTextColor")) json.optInt("captionTextColor") else null,
+                            captionBold = json.optBoolean("captionBold", false),
+                            roundedCorners = json.optBoolean("roundedCorners", false),
                         ),
                     )
                 } catch (_: Exception) { /* Older or incomplete editor settings use defaults. */ }
@@ -487,6 +523,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             notify("WhatsApp needs at least ${PackRepository.MIN_WHATSAPP_STICKERS} stickers in a pack")
             return
         }
+        if (pack.stickerCount > PackRepository.MAX_WHATSAPP_STICKERS) {
+            notify("WhatsApp packs can contain at most ${PackRepository.MAX_WHATSAPP_STICKERS} stickers")
+            return
+        }
         if (_exportingPackId.value != null) return
         _exportingPackId.value = packId
         viewModelScope.launch {
@@ -499,7 +539,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     notify("Couldn't prepare the pack for WhatsApp")
                     return@launch
                 }
-                val intent = PackExporter.createWhatsAppIntent(getApplication(), prepared)
+                val intent = try {
+                    PackExporter.createWhatsAppIntent(getApplication(), prepared)
+                } catch (_: Exception) {
+                    notify("Couldn't prepare the pack for WhatsApp")
+                    return@launch
+                }
                 refresh()
                 if (intent != null) onPrepared(intent)
                 if (intent == null) notify("WhatsApp isn't installed \u2014 share a single sticker instead")
@@ -549,7 +594,32 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         .put("caption", state.style.caption)
         .put("captionPosition", state.style.captionPosition.name)
         .put("captionColor", state.style.captionColor.name)
+        .put("captionFont", state.style.captionFont)
+        .put("captionSize", state.style.captionSize)
+        .put("captionBackground", state.style.captionBackground)
+        .put("captionTextColor", state.style.captionTextColor ?: JSONObject.NULL)
+        .put("captionBold", state.style.captionBold)
+        .put("roundedCorners", state.style.roundedCorners)
         .toString()
+
+    /** Two intentionally generic, deterministic vector typographic starters. */
+    private fun starterStickerBytes(): List<ByteArray> = listOf("HELLO!", "NICE ONE").mapIndexed { index, label ->
+        val bitmap = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (index == 0) android.graphics.Color.rgb(219, 240, 143) else android.graphics.Color.rgb(197, 174, 233)
+            style = android.graphics.Paint.Style.FILL
+        }
+        canvas.drawRoundRect(44f, 145f, 468f, 365f, 82f, 82f, paint)
+        paint.color = android.graphics.Color.rgb(45, 26, 53)
+        paint.typeface = android.graphics.Typeface.create("sans-serif-black", android.graphics.Typeface.BOLD)
+        paint.textAlign = android.graphics.Paint.Align.CENTER
+        paint.textSize = 55f
+        canvas.drawText(label, 256f, 270f, paint)
+        val result = StickerCodec.encodeWebp(bitmap)
+        bitmap.recycle()
+        result
+    }
 
     private suspend fun encodeSource(source: Bitmap): ByteArray = withContext(Dispatchers.IO) {
         ByteArrayOutputStream().use { out ->

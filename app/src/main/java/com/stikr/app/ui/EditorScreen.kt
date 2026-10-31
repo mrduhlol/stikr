@@ -91,6 +91,8 @@ fun EditorScreen(
     onSaveNew: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    remember(context) { com.stikr.app.render.StickerTypography.initialize(context); true }
     val palette = Neo.palette
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let(onPick)
@@ -394,6 +396,16 @@ private fun OutlineCard(state: EditorState, onStyle: (StickerRenderer.Style) -> 
         )
         Spacer(Modifier.height(10.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Bleeding bend", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+                Text("Round photo corners before the outline", style = MaterialTheme.typography.bodySmall, color = palette.muted)
+            }
+            NeoSwitch(checked = state.style.roundedCorners,
+                onCheckedChange = { onStyle(state.style.copy(roundedCorners = it)) },
+                enabled = enabled, contentDescription = "Bleeding bend")
+        }
+        Spacer(Modifier.height(18.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "COLOUR",
                 style = MaterialTheme.typography.labelMedium,
@@ -433,6 +445,17 @@ private fun CaptionCard(state: EditorState, onStyle: (StickerRenderer.Style) -> 
 
         if (state.style.caption.isNotBlank()) {
             Spacer(Modifier.height(18.dp))
+            TextStyleControls(
+                font = state.style.captionFont, size = state.style.captionSize,
+                bold = state.style.captionBold, background = state.style.captionBackground,
+                textColor = state.style.captionTextColor ?: state.style.captionColor.fill,
+                onFont = { onStyle(state.style.copy(captionFont = it)) },
+                onSize = { onStyle(state.style.copy(captionSize = it)) },
+                onBold = { onStyle(state.style.copy(captionBold = it)) },
+                onBackground = { onStyle(state.style.copy(captionBackground = it)) },
+                onTextColor = { onStyle(state.style.copy(captionTextColor = it)) },
+            )
+            Spacer(Modifier.height(18.dp))
             Text(
                 text = "COLOUR",
                 style = MaterialTheme.typography.labelMedium,
@@ -448,7 +471,7 @@ private fun CaptionCard(state: EditorState, onStyle: (StickerRenderer.Style) -> 
                         fill = Color(color.fill),
                         label = color.label,
                         selected = state.style.captionColor == color,
-                        onClick = { onStyle(state.style.copy(captionColor = color)) },
+                        onClick = { onStyle(state.style.copy(captionColor = color, captionTextColor = null)) },
                     )
                 }
             }

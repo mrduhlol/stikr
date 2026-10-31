@@ -29,6 +29,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import com.stikr.app.data.StickerPack
+import java.io.File
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -40,7 +43,7 @@ import com.stikr.app.ui.neo.NeoSnackbar
 import com.stikr.app.ui.theme.NeoMotion
 import com.stikr.app.ui.theme.AppearanceMode
 
-private enum class Screen { HOME, PACK, EDITOR, SETTINGS }
+private enum class Screen { HOME, PACK, EDITOR, THUMBNAIL, SETTINGS }
 
 @Composable
 fun StikrApp(
@@ -48,6 +51,11 @@ fun StikrApp(
     appearanceMode: AppearanceMode = AppearanceMode.SYSTEM,
     onAppearanceChange: (AppearanceMode) -> Unit = {},
 ) {
+    val context = LocalContext.current
+    var pendingExportId by rememberSaveable { mutableStateOf<String?>(null) }
+    var celebration by remember { mutableStateOf<StickerPack?>(null) }
+    var thumbnailSaving by remember { mutableStateOf(false) }
+    var singleEditing by rememberSaveable { mutableStateOf(false) }
     val packs by viewModel.packs.collectAsStateWithLifecycle()
     val editor by viewModel.editor.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
@@ -60,8 +68,13 @@ fun StikrApp(
         val validationError = result.data?.getStringExtra("validation_error")
         when {
             !validationError.isNullOrBlank() -> viewModel.notify("WhatsApp couldn't add this pack: $validationError")
-            result.resultCode == Activity.RESULT_OK -> viewModel.notify("Pack added to WhatsApp")
+            result.resultCode == Activity.RESULT_OK -> {
+                com.stikr.app.audio.AppSounds.success()
+                celebration = viewModel.packs.value.firstOrNull { it.id == pendingExportId }
+                viewModel.notify("Pack added to WhatsApp")
+            }
         }
+        pendingExportId = null
     }
 
     var screen by rememberSaveable { mutableStateOf(Screen.HOME.name) }
@@ -92,6 +105,7 @@ fun StikrApp(
     }
 
     fun openEditor(id: String) {
+        singleEditing = false
         packId = id
         savingToNewPack = false // a fresh editor session starts clean
         viewModel.startEditor(id)
@@ -101,25 +115,29 @@ fun StikrApp(
     fun leaveEditor() {
         savingToNewPack = false
         viewModel.closeEditor()
-        screen = Screen.PACK.name
+        screen = if (singleEditing) Screen.HOME.name else Screen.PACK.name
+        singleEditing = false
     }
 
     fun makeSticker() {
-        val first = packs.firstOrNull()
-        if (first != null) {
-            openEditor(first.id)
-        } else {
-            viewModel.createPack("My stickers") { openEditor(it.id) }
+        viewModel.startSingleSticker { id ->
+            packId = id
+            singleEditing = true
+            savingToNewPack = false
+            screen = Screen.EDITOR.name
         }
     }
 
     fun exportPack(id: String) {
         viewModel.exportToWhatsApp(id) { intent ->
             try {
+                pendingExportId = id
                 whatsappLauncher.launch(intent)
             } catch (_: ActivityNotFoundException) {
+                pendingExportId = null
                 viewModel.notify("WhatsApp isn't available on this device")
             } catch (_: SecurityException) {
+                pendingExportId = null
                 viewModel.notify("Couldn't open WhatsApp. Please update WhatsApp and try again")
             }
         }
@@ -175,6 +193,8 @@ fun StikrApp(
                         onOpenPack = ::openPack,
                         onCreatePack = { name -> viewModel.createPack(name) { openPack(it.id) } },
                         onMakeSticker = ::makeSticker,
+                        onExportSingles = ::exportPack,
+                        onDeleteSingle = viewModel::deleteSticker,
                         onStartBatch = { title, author, uris, removeBackground ->
                             viewModel.startBatch(title, author, uris, removeBackground)
                         },
@@ -191,6 +211,8 @@ fun StikrApp(
                                 pack = pack,
                                 onBack = { screen = Screen.HOME.name },
                                 onRename = { viewModel.renamePack(pack.id, it) },
+                                onRenameAuthor = { viewModel.renamePackAuthor(pack.id, it) },
+                                onThumbnail = { screen = Screen.THUMBNAIL.name },
                                 onDelete = { viewModel.deletePack(pack.id) { screen = Screen.HOME.name } },
                                 onAddSticker = { openEditor(pack.id) },
                                 onImportPhotos = { viewModel.importPhotos(pack.id, it) },
@@ -205,6 +227,25 @@ fun StikrApp(
                                 exporting = exportingPackId == pack.id,
                             )
                         }
+                    }
+
+                    Screen.THUMBNAIL.name -> {
+                        val pack = packs.firstOrNull { it.id == packId }
+                        if (pack == null) LaunchedEffect(Unit) { screen = Screen.HOME.name }
+                        else ThumbnailEditor(
+                            saving = thumbnailSaving,
+                            initialFile = (pack.thumbnailImage ?: pack.stickers.firstOrNull())?.let {
+                                File(context.filesDir, "packs/${pack.id}/$it")
+                            },
+                            onSave = { bytes ->
+                                thumbnailSaving = true
+                                viewModel.setPackThumbnail(pack.id, bytes) { saved ->
+                                    thumbnailSaving = false
+                                    if (saved) screen = Screen.PACK.name
+                                }
+                            },
+                            onBack = { screen = Screen.PACK.name },
+                        )
                     }
 
                     Screen.SETTINGS.name -> SettingsScreen(
@@ -258,6 +299,7 @@ fun StikrApp(
         ) { data ->
             NeoSnackbar(data)
         }
+        celebration?.let { pack -> PackAddedCelebration(pack) { celebration = null } }
     }
 
     // The editor owns its own back press — it asks before dropping a picked

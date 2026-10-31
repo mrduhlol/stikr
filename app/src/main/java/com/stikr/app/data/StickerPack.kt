@@ -8,6 +8,13 @@ data class StickerPack(
     val createdAt: Long,
     val stickers: List<String>,
     val trayImage: String? = null,
+    val isSingles: Boolean = false,
+    val serialNumber: Int = 0,
+    val displayId: String = "",
+    val thumbnailImage: String? = null,
+    val starterStickers: List<String> = emptyList(),
+    val contentVersion: Long = 1L,
 ) {
     val stickerCount: Int get() = stickers.size
+    val userStickerCount: Int get() = stickers.count { it !in starterStickers }
 }

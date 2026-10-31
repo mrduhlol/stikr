@@ -5,6 +5,8 @@ import androidx.compose.runtime.setValue
 
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -337,12 +339,12 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
         }
         settle()
         compose.onNodeWithContentDescription("First thumbnail").assertIsDisplayed()
-        compose.onNodeWithText("Add to WhatsApp", ignoreCase = true).assertIsDisplayed().performClick()
+        compose.onNodeWithContentDescription("Slide to add to WhatsApp").assertIsDisplayed().performTouchInput { swipe(Offset(10f, centerY), Offset(width - 10f, centerY)) }
         assertEquals("first", exported)
         compose.onNodeWithTag("batch-pager").performTouchInput { swipeLeft() }
         settle()
         compose.onNodeWithContentDescription("Second thumbnail").assertIsDisplayed()
-        compose.onNodeWithText("Add to WhatsApp", ignoreCase = true).performClick()
+        compose.onNodeWithContentDescription("Slide to add to WhatsApp").performTouchInput { swipe(Offset(10f, centerY), Offset(width - 10f, centerY)) }
         assertEquals("second", exported)
         capture("batch-export-second-pack")
     }
@@ -358,11 +360,11 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
             }
         }
         settle()
-        compose.onNodeWithText("Add to WhatsApp", ignoreCase = true).assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Slide to add to WhatsApp").assertIsNotEnabled()
         compose.onNodeWithText("1 more sticker — WhatsApp takes packs of 3 or more").assertIsDisplayed()
         compose.runOnIdle { busy = true }
         compose.onNodeWithContentDescription("Preparing pack for WhatsApp").assertIsDisplayed()
-        compose.onNodeWithText("Add to WhatsApp", ignoreCase = true).assertDoesNotExist()
+        compose.onNodeWithContentDescription("Slide to add to WhatsApp").assertDoesNotExist()
     }
 
     private fun runningState() = BatchState(

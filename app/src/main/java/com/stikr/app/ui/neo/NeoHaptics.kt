@@ -3,6 +3,7 @@ package com.stikr.app.ui.neo
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.view.View
+import com.stikr.app.audio.AppSounds
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalView
@@ -22,6 +23,10 @@ fun rememberHaptics(): (NeoHaptic) -> Unit {
 }
 
 fun View.neoHaptic(kind: NeoHaptic) {
+    if (kind == NeoHaptic.Tap || kind == NeoHaptic.Confirm) {
+        AppSounds.initialize(context)
+        AppSounds.click()
+    }
     val constant = when (kind) {
         NeoHaptic.None -> return
         NeoHaptic.Tap -> HapticFeedbackConstants.KEYBOARD_TAP

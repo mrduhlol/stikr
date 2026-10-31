@@ -25,9 +25,9 @@ class AppearanceSettingsTest {
         }
     }
 
-    @Test fun unknownPreferenceUsesSystemTheme() {
+    @Test fun unknownPreferenceUsesDefaultDarkTheme() {
         context.getSharedPreferences("appearance", Context.MODE_PRIVATE)
             .edit().putString("mode", "removed-mode").commit()
-        assertEquals(AppearanceMode.SYSTEM, AppearanceSettings(context).mode.value)
+        assertEquals(AppearanceMode.DARK, AppearanceSettings(context).mode.value)
     }
 }

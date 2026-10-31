@@ -132,7 +132,8 @@ class StickerPackContentProvider : ContentProvider() {
             val file = repo.stickerFile(pack.id, name)
             "$name:${file?.lastModified()}:${file?.length()}"
         }
-        return (stickers.hashCode().toLong() * 31 + tray).toULong().toString(36)
+        val assets = (stickers.hashCode().toLong() * 31 + tray).toULong().toString(36)
+        return "${pack.contentVersion}-$assets"
     }
 
     companion object {

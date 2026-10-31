@@ -5,7 +5,6 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
-import android.graphics.Typeface
 import android.text.TextPaint
 import android.text.TextUtils
 import kotlin.math.cos
@@ -38,11 +37,17 @@ object StickerRenderer {
     }
 
     data class Style(
-        val outline: Int = 8,
+        val outline: Int = 3,
         val outlineColor: OutlineColor = OutlineColor.WHITE,
         val caption: String = "",
         val captionPosition: CaptionPosition = CaptionPosition.BOTTOM,
         val captionColor: CaptionColor = CaptionColor.CREAM,
+        val roundedCorners: Boolean = false,
+        val captionFont: String = "sans",
+        val captionSize: Int = 40,
+        val captionBackground: Int = android.graphics.Color.TRANSPARENT,
+        val captionTextColor: Int? = null,
+        val captionBold: Boolean = false,
     )
 
     fun render(subject: Bitmap, style: Style): Bitmap {
@@ -60,11 +65,12 @@ object StickerRenderer {
         private var outline = -1
         private var color: OutlineColor? = null
         private var layer: Bitmap? = null
+        private var roundedCorners = false
 
         fun render(subject: Bitmap, style: Style): Bitmap {
             val width = style.outline.coerceIn(0, MAX_OUTLINE)
             if (this.subject !== subject || generation != subject.generationId ||
-                outline != width || color != style.outlineColor
+                outline != width || color != style.outlineColor || roundedCorners != style.roundedCorners
             ) {
                 clear()
                 layer = Bitmap.createBitmap(SIZE, SIZE, Bitmap.Config.ARGB_8888).also {
@@ -74,6 +80,7 @@ object StickerRenderer {
                 generation = subject.generationId
                 outline = width
                 color = style.outlineColor
+                roundedCorners = style.roundedCorners
             }
             val out = requireNotNull(layer).copy(Bitmap.Config.ARGB_8888, true)
             drawCaption(Canvas(out), style)
@@ -97,7 +104,17 @@ object StickerRenderer {
         val left = (SIZE - drawWidth) / 2f
         val top = (SIZE - drawHeight) / 2f
 
-        val scaled = Bitmap.createScaledBitmap(subject, drawWidth, drawHeight, true)
+        val resized = Bitmap.createScaledBitmap(subject, drawWidth, drawHeight, true)
+        val scaled = if (style.roundedCorners) {
+            Bitmap.createBitmap(drawWidth, drawHeight, Bitmap.Config.ARGB_8888).also { rounded ->
+                val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    shader = android.graphics.BitmapShader(resized, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP)
+                }
+                val radius = min(drawWidth, drawHeight) * 0.09f
+                Canvas(rounded).drawRoundRect(0f, 0f, drawWidth.toFloat(), drawHeight.toFloat(), radius, radius, paint)
+                if (resized !== subject) resized.recycle()
+            }
+        } else resized
         if (outline > 0) {
             val silhouette = silhouette(scaled, style.outlineColor.color)
             val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
@@ -190,10 +207,10 @@ object StickerRenderer {
         val maxWidth = SIZE - 2f * 22f
         val paint = TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
             textAlign = Paint.Align.CENTER
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            typeface = StickerTypography.typeface(style.captionFont, style.captionBold)
         }
-        var textSize = 92f
-        while (textSize > 26f) {
+        var textSize = style.captionSize.coerceIn(16, 120).toFloat()
+        while (textSize > 16f) {
             paint.textSize = textSize
             if (paint.measureText(text.toString()) <= maxWidth) break
             textSize -= 2f
@@ -208,6 +225,12 @@ object StickerRenderer {
             CaptionPosition.BOTTOM -> SIZE - 16f
         }
 
+        if (android.graphics.Color.alpha(style.captionBackground) > 0) {
+            val halfWidth = paint.measureText(text.toString()) / 2 + 10f
+            canvas.drawRect(SIZE / 2f - halfWidth, baseline + paint.fontMetrics.ascent - 6f,
+                SIZE / 2f + halfWidth, baseline + paint.fontMetrics.descent + 6f,
+                Paint().apply { color = style.captionBackground })
+        }
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = textSize * 0.16f
         paint.strokeJoin = Paint.Join.ROUND
@@ -215,7 +238,7 @@ object StickerRenderer {
         canvas.drawText(text.toString(), SIZE / 2f, baseline, paint)
 
         paint.style = Paint.Style.FILL
-        paint.color = style.captionColor.fill
+        paint.color = style.captionTextColor ?: style.captionColor.fill
         canvas.drawText(text.toString(), SIZE / 2f, baseline, paint)
     }
 }

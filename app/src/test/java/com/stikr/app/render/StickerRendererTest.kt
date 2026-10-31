@@ -22,6 +22,48 @@ import java.io.File
 @Config(sdk = [34], qualifiers = "xxhdpi")
 class StickerRendererTest {
 
+    @Test
+    fun defaultsAndBleedingBendChangePhotoCornersBeforeOutline() {
+        val defaults = StickerRenderer.Style()
+        assertEquals(3, defaults.outline)
+        assertEquals(false, defaults.roundedCorners)
+        assertEquals("sans", defaults.captionFont)
+        assertEquals(40, defaults.captionSize)
+        assertEquals(Color.TRANSPARENT, defaults.captionBackground)
+        assertEquals(null, defaults.captionTextColor)
+        assertEquals(false, defaults.captionBold)
+        val photo = Bitmap.createBitmap(400, 400, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) }
+        val square = StickerRenderer.render(photo, defaults.copy(outline = 0))
+        val rounded = StickerRenderer.render(photo, defaults.copy(outline = 0, roundedCorners = true))
+        assertEquals(255, Color.alpha(square.getPixel(20, 20)))
+        assertEquals(0, Color.alpha(rounded.getPixel(20, 20)))
+        assertEquals(Color.RED, rounded.getPixel(256, 256))
+        val outlined = StickerRenderer.render(photo, defaults.copy(roundedCorners = true))
+        assertEquals(0, Color.alpha(outlined.getPixel(20, 20)))
+        val cache = StickerRenderer.PreviewCache()
+        cache.render(photo, defaults).recycle()
+        val cachedRounded = cache.render(photo, defaults.copy(roundedCorners = true))
+        assertTrue(outlined.sameAs(cachedRounded))
+        cache.clear()
+        listOf(photo, square, rounded, outlined, cachedRounded).forEach { it.recycle() }
+    }
+
+    @Test
+    fun captionStyleChangesRenderedPixels() {
+        val photo = Bitmap.createBitmap(400, 400, Bitmap.Config.ARGB_8888)
+        val style = StickerRenderer.Style(caption = "Little things")
+        val base = StickerRenderer.render(photo, style)
+        for (variant in listOf(style.copy(captionFont = "serif"), style.copy(captionSize = 80),
+            style.copy(captionBackground = Color.MAGENTA), style.copy(captionTextColor = Color.GREEN),
+            style.copy(captionBold = true))) {
+            val changed = StickerRenderer.render(photo, variant)
+            assertTrue("caption controls must change pixels: $variant", !base.sameAs(changed))
+            changed.recycle()
+        }
+        base.recycle()
+        photo.recycle()
+    }
+
     private val out = File("build/sticker-renders").apply { mkdirs() }
 
     /** A stand-in photo: warm head, green body, on a light background. */

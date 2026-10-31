@@ -43,7 +43,7 @@ Uninstalling deletes local packs.
 | **Keep it local** | No sign-in, uploads, analytics, or telemetry. Cut-out requires Google Play services; everything else works fully offline. |
 | **Choose your appearance** | Open **Settings** at the top right for **Light**, **Dark**, **AMOLED** (pure black), or **System**. Your choice is remembered. |
 
-Static stickers only. A tray-icon picker, multiple subjects, extra caption fonts,
+Static stickers only. A tray-icon picker, multiple subjects,
 and emoji suggestions are not shipped. Photos come from the system photo picker;
 stikr does not ask for storage permission.
 
@@ -87,62 +87,34 @@ pack's publisher.
 [Full how-to](https://mrduhlol.github.io/stikr/use.html) ·
 [Privacy details](https://mrduhlol.github.io/stikr/privacy.html)
 
-## **Ink. Paper. Stickers.**
+## **Your little collections**
 
-![Sample stikr screens in light mode](docs/theme/screens-light.png)
+The app uses a dark plum background with balanced violet and olive light,
+lime actions, and a two-column collection of sharp pack cards. Each card uses
+its thumbnail's colors, a flush striped LVL tab, its creation checkpoint and
+persistent numeric ID. The approved black/lime S with the large folded corner is the launcher icon.
 
-The tour and the batch flow have screens of their own:
+**Create a sticker pack** selects photos together. **Create a sticker** opens the
+single-photo editor and saves to the shared **Stikr** pack. Singles appear in
+their own row; long-press one to delete it or open the WhatsApp slider. Each
+new shared pack starts with two starter stickers, removed automatically after
+three of your own are saved. Full packs continue into Stikr 2, Stikr 3, and so on.
+Repeated imports update the same pack identity.
 
-| The tour | A new batch | Making stickers |
-| :--- | :--- | :--- |
-| ![The first page of the first-run tour](docs/theme/tour-light.png) | ![The New batch dialog, with a title and an author](docs/theme/batch-dialog-light.png) | ![A batch of 100 photos, 37 of them done](docs/theme/batch-running-light.png) |
+Open a pack and tap its thumbnail or use **⋮ → Add thumbnail** to choose a photo
+or text cover. Photo covers support drag and zoom in a 4:5 crop and save at
+1080 × 1350 pixels. Text covers include fonts, size, bold/italic, background,
+and text color. The same menu edits the title and author.
 
-| The packs it made | A full pack |
-| :--- | :--- |
-| ![Two packs made from a batch of 100 photos](docs/theme/batch-done-light.png) | ![The editor when the pack is full](docs/theme/editor-full-light.png) |
+Sticker outlines default to **3 px**. **Bleeding bend** rounds photo corners
+before drawing the outline and defaults off. Caption controls include font,
+size, bold, background, and color. A full slide requests WhatsApp import; a
+front/back 360° card celebration plays only after WhatsApp confirms success.
+Reduced-motion settings suppress the spin and particles. Short click, slide,
+and success sounds follow the top-right mute toggle and the phone’s silent mode.
 
-<details>
-<summary>See the dark theme</summary>
-
-![Sample stikr screens in dark mode](docs/theme/screens-dark.png)
-
-| The tour | The packs it made |
-| :--- | :--- |
-| ![The first page of the first-run tour in dark mode](docs/theme/tour-dark.png) | ![Two packs made from a batch, in dark mode](docs/theme/batch-done-dark.png) |
-
-</details>
-
-Neo-brutalist sticker book: cream paper, **3 dp ink borders** on every
-framed surface, hard offset shadows with no blur (3, 5 and 8 dp) that buttons
-and cards press into, flat pastel cards and one red accent. Anton headlines,
-uppercase **Space Mono** labels, buttons and counters. The home slogan knocks
-STICKERS out of a tilted red slab. Purple, the app-mark colour, marks progress
-bars and keyboard focus. Dark mode inverts the print: near-black paper with
-cream ink and cream shadows, while the pastels keep their colours. The
-screenshots use sample stickers.
-
-| Paper | Ink | Butter | Cyan | Green | Pink | Red accent | Purple mark |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `#F1EDE7` | `#191715` | `#F8DFA0` | `#9EDDE6` | `#9CE4A4` | `#F3CDDA` | `#AE403E` | `#723AF4` |
-
-- [`ui/theme/Theme.kt`](app/src/main/java/com/stikr/app/ui/theme/Theme.kt)
-  defines `NeoPalette`, exposed as `Neo.palette`, Material 3 colour mapping and
-  the type scale. Pastel fills carry dark `onAccent` ink in both themes.
-  [`ui/theme/Tokens.kt`](app/src/main/java/com/stikr/app/ui/theme/Tokens.kt)
-  holds the border, shadow, spacing, shape and motion tokens.
-- [`ui/neo/`](app/src/main/java/com/stikr/app/ui/neo/) is the component kit:
-  `neoFrame` for borders and pressable hard shadows, `NeoCard`, `NeoButton`,
-  `NeoOutlinedButton`, `NeoIconButton`, `NeoSegmented`, `NeoSwitch`,
-  `NeoSlider`, `NeoSwatch`, `NeoTag`, `NeoSectionHeader`, `NeoDialog`,
-  `NeoTextField`, `NeoSnackbar`, `NeoEmptyState`, `NeoProgressBar`,
-  `NeoMeter`, `StickerHeadline` and `NeoWordmark`, plus press haptics.
-- Anton and Space Mono are bundled under the SIL Open Font License
-  ([Anton](licenses/anton-OFL.txt), [Space Mono](licenses/space-mono-OFL.txt)).
-- The app icon is a white sticker “S” with a peeled corner on purple `#723AF4`.
-  Source: [`docs/brand/logo.png`](docs/brand/logo.png). The adaptive icon uses a
-  raster foreground at `res/mipmap-*/ic_launcher_foreground.png` over purple.
-
-[Design system reference](https://mrduhlol.github.io/stikr/design.html)
+The approved [interactive design reference](docs/mockups/stikr-redesign-preview.html)
+and [design tokens](DESIGN.md) document the intended layout and behavior.
 
 ## **Build it**
 

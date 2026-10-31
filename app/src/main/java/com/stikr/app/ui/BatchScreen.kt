@@ -1,6 +1,7 @@
 package com.stikr.app.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.pager.HorizontalPager
@@ -102,6 +103,7 @@ private fun ProcessingScreen(state: BatchState, onCancel: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .collectionBackground()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = NeoDimens.gutter),
@@ -224,6 +226,7 @@ private fun DoneScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .collectionBackground()
                 .padding(padding)
                 .padding(horizontal = NeoDimens.gutter),
         ) {
@@ -236,7 +239,7 @@ private fun DoneScreen(
                     0 -> "No stickers were made"
                     1 -> "1 pack created"
                     else -> "${state.created.size} packs created"
-                }.uppercase(),
+                },
                 style = MaterialTheme.typography.headlineMedium,
                 color = palette.ink,
             )
@@ -289,19 +292,8 @@ private fun BatchPackPage(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Box(Modifier.fillMaxWidth()) {
-            NeoCard(
-                modifier = Modifier.fillMaxWidth().height(220.dp),
-                fill = palette.creamDim,
-                padding = PaddingValues(24.dp),
-            ) {
-                val first = pack.stickers.firstOrNull()
-                if (first != null) {
-                    StickerImage(dir.resolve(first), "${pack.name} thumbnail", Modifier.fillMaxSize())
-                } else {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("No stickers yet", color = palette.muted)
-                    }
-                }
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                PackCollectionCard(pack, Modifier.width(220.dp), onClick = { onOpenPack(pack.id) })
             }
             NeoIconButton(
                 onClick = { onOpenPack(pack.id) },
@@ -310,12 +302,6 @@ private fun BatchPackPage(
                 modifier = Modifier.align(Alignment.TopEnd).padding(10.dp),
             )
         }
-        Text(
-            text = "— ${pack.name.uppercase()} —",
-            style = MaterialTheme.typography.headlineMedium,
-            color = palette.ink,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-        )
         pack.stickers.chunked(3).forEachIndexed { row, names ->
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 names.forEachIndexed { column, name ->
@@ -325,7 +311,7 @@ private fun BatchPackPage(
                             .semantics { contentDescription = "Sticker $number" },
                         fill = palette.creamDim,
                         shape = NeoShapes.tile,
-                        shadow = NeoDimens.shadowSmall + 1.dp,
+                        shadow = 0.dp,
                         padding = PaddingValues(10.dp),
                         onClick = { selected = name },
                         onClickLabel = "Edit, share or delete",
@@ -391,7 +377,7 @@ fun CreateBatchDialog(
 
     NeoDialog(
         onDismiss = onDismiss,
-        title = "New batch",
+        title = "Create a sticker pack",
         body = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 NeoTextField(

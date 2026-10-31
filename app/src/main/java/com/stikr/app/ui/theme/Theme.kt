@@ -22,11 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.stikr.app.R
 
-/**
- * stikr's look: neo-brutalist sticker book. Cream paper, thick ink borders,
- * big hard offset shadows that elements press into, flat fills, Anton
- * headlines and uppercase Space Mono labels. No blur, no gradients.
- */
+/** Plum surfaces, soft violet and olive accents, and readable native sans typography. */
 @Immutable
 data class NeoPalette(
     /** Screen background: warm cream. */
@@ -81,7 +77,7 @@ data class NeoPalette(
     }
 }
 
-private val Ink = Color(0xFF191715)
+private val Ink = Color(0xFF211B21)
 
 private val LightPalette = NeoPalette(
     paper = Color(0xFFF1EDE7),
@@ -89,13 +85,13 @@ private val LightPalette = NeoPalette(
     ink = Ink,
     shadow = Ink,
     muted = Color(0xFF5E5A52),
-    butter = Color(0xFFF8DFA0),
+    butter = Color(0xFFD5F277),
     cyan = Color(0xFF9EDDE6),
     green = Color(0xFF9CE4A4),
     pink = Color(0xFFF3CDDA),
-    cherry = Color(0xFFAE403E),
-    onCherry = Color(0xFFFFFFFF),
-    cherryInk = Color(0xFFAE403E),
+    cherry = Color(0xFFD5F277),
+    onCherry = Color(0xFF263113),
+    cherryInk = Color(0xFFD5F277),
     purple = Color(0xFF723AF4),
     onPurple = Color(0xFFFFFFFF),
     creamDim = Color(0xFFE4DDD2),
@@ -108,21 +104,21 @@ private val LightPalette = NeoPalette(
  * their brand hexes so they read as the same stickers.
  */
 private val DarkPalette = NeoPalette(
-    paper = Color(0xFF13110D),
-    card = Color(0xFF221F19),
-    ink = Color(0xFFF3EFE6),
-    shadow = Color(0xFFF3EFE6),
-    muted = Color(0xFFADA595),
-    butter = Color(0xFFF8DFA0),
+    paper = Color(0xFF201824),
+    card = Color(0xFF302637),
+    ink = Color(0xFFFFF9FF),
+    shadow = Color(0xFFFFF9FF),
+    muted = Color(0xFFC4B5CF),
+    butter = Color(0xFFD5F277),
     cyan = Color(0xFF9EDDE6),
     green = Color(0xFF9CE4A4),
     pink = Color(0xFFF3CDDA),
-    cherry = Color(0xFFAE403E),
-    onCherry = Color(0xFFFFFFFF),
-    cherryInk = Color(0xFFEE7B72),
+    cherry = Color(0xFFD5F277),
+    onCherry = Color(0xFF263113),
+    cherryInk = Color(0xFFD5F277),
     purple = Color(0xFF723AF4),
     onPurple = Color(0xFFFFFFFF),
-    creamDim = Color(0xFF2F2B23),
+    creamDim = Color(0xFF392D42),
     onAccent = Ink,
 )
 
@@ -132,7 +128,7 @@ private val AmoledPalette = DarkPalette.copy(
     creamDim = Color(0xFF1B1B1B),
 )
 
-val LocalNeoPalette = staticCompositionLocalOf { LightPalette }
+val LocalNeoPalette = staticCompositionLocalOf { DarkPalette }
 
 /** Anton: the heavy condensed display face used for every headline. */
 val Anton = FontFamily(Font(R.font.anton_regular))
@@ -164,8 +160,8 @@ private fun scheme(p: NeoPalette, dark: Boolean): ColorScheme {
         surfaceContainerHighest = p.creamDim,
         outline = p.ink,
         outlineVariant = p.ink.copy(alpha = 0.35f),
-        error = p.cherry,
-        onError = p.onCherry,
+        error = Color(0xFFEEA1AE),
+        onError = Color(0xFF391923),
         errorContainer = p.pink,
         onErrorContainer = p.onAccent,
         inverseSurface = p.ink,
@@ -175,29 +171,29 @@ private fun scheme(p: NeoPalette, dark: Boolean): ColorScheme {
 }
 
 private val NeoTypography = Typography(
-    displayLarge = TextStyle(fontFamily = Anton, fontSize = 60.sp, lineHeight = 60.sp, letterSpacing = 0.sp),
-    displayMedium = TextStyle(fontFamily = Anton, fontSize = 46.sp, lineHeight = 48.sp, letterSpacing = 0.sp),
-    displaySmall = TextStyle(fontFamily = Anton, fontSize = 38.sp, lineHeight = 40.sp, letterSpacing = 0.sp),
-    headlineLarge = TextStyle(fontFamily = Anton, fontSize = 34.sp, lineHeight = 36.sp, letterSpacing = 0.2.sp),
-    headlineMedium = TextStyle(fontFamily = Anton, fontSize = 28.sp, lineHeight = 31.sp, letterSpacing = 0.2.sp),
-    headlineSmall = TextStyle(fontFamily = Anton, fontSize = 24.sp, lineHeight = 27.sp, letterSpacing = 0.3.sp),
-    titleLarge = TextStyle(fontFamily = Anton, fontSize = 21.sp, lineHeight = 25.sp, letterSpacing = 0.3.sp),
+    displayLarge = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, fontSize = 60.sp, lineHeight = 60.sp, letterSpacing = 0.sp),
+    displayMedium = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, fontSize = 46.sp, lineHeight = 48.sp, letterSpacing = 0.sp),
+    displaySmall = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, fontSize = 38.sp, lineHeight = 40.sp, letterSpacing = 0.sp),
+    headlineLarge = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, fontSize = 34.sp, lineHeight = 36.sp, letterSpacing = 0.2.sp),
+    headlineMedium = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, fontSize = 28.sp, lineHeight = 31.sp, letterSpacing = 0.2.sp),
+    headlineSmall = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 27.sp, letterSpacing = 0.3.sp),
+    titleLarge = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, fontSize = 21.sp, lineHeight = 25.sp, letterSpacing = 0.3.sp),
     titleMedium = TextStyle(fontSize = 16.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold),
     titleSmall = TextStyle(fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.Bold),
     bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 23.sp),
     bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 20.sp),
     bodySmall = TextStyle(fontSize = 12.5.sp, lineHeight = 17.sp),
-    labelLarge = TextStyle(fontFamily = SpaceMono, fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 18.sp, letterSpacing = 0.6.sp),
-    labelMedium = TextStyle(fontFamily = SpaceMono, fontWeight = FontWeight.Bold, fontSize = 11.5.sp, lineHeight = 15.sp, letterSpacing = 0.8.sp),
-    labelSmall = TextStyle(fontFamily = SpaceMono, fontWeight = FontWeight.Bold, fontSize = 10.sp, lineHeight = 13.sp, letterSpacing = 1.sp),
+    labelLarge = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 18.sp, letterSpacing = 0.6.sp),
+    labelMedium = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Bold, fontSize = 11.5.sp, lineHeight = 15.sp, letterSpacing = 0.8.sp),
+    labelSmall = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Bold, fontSize = 10.sp, lineHeight = 13.sp, letterSpacing = 1.sp),
 )
 
 private val NeoMaterialShapes = Shapes(
     extraSmall = RoundedCornerShape(2.dp),
-    small = RoundedCornerShape(4.dp),
-    medium = RoundedCornerShape(4.dp),
-    large = RoundedCornerShape(6.dp),
-    extraLarge = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(22.dp),
+    extraLarge = RoundedCornerShape(24.dp),
 )
 
 private val LightScheme = scheme(LightPalette, dark = false)
@@ -210,18 +206,10 @@ fun StikrTheme(
     amoled: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val palette = when {
-        amoled -> AmoledPalette
-        darkTheme -> DarkPalette
-        else -> LightPalette
-    }
+    val palette = DarkPalette
     CompositionLocalProvider(LocalNeoPalette provides palette) {
         MaterialTheme(
-            colorScheme = when {
-                amoled -> AmoledScheme
-                darkTheme -> DarkScheme
-                else -> LightScheme
-            },
+            colorScheme = DarkScheme,
             shapes = NeoMaterialShapes,
             typography = NeoTypography,
             content = content,

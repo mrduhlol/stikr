@@ -1,6 +1,7 @@
 package com.stikr.app.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -169,5 +170,70 @@ class PackRepositoryTest {
         assertEquals("Newer", listed.first().name)
         assertEquals("Older", listed.last().name)
         assertNotNull(repository.getPack(older.id))
+    }
+
+    @Test
+    fun packsHaveStableChronologicalDisplayIdentityAndOldMetadataStillLoads() {
+        val repository = repo()
+        val first = repository.createPack("First")
+        val second = repository.createPack("Second")
+        val reopened = repo()
+        assertEquals(first.serialNumber, reopened.getPack(first.id)?.serialNumber)
+        assertEquals(first.displayId, reopened.getPack(first.id)?.displayId)
+        assertTrue(second.serialNumber > first.serialNumber)
+        assertTrue(first.displayId.isNotBlank())
+        val old = File(temp.root, "packs/legacy").apply { mkdirs() }
+        File(old, PackRepository.PACK_FILE).writeText("""{"id":"legacy","name":"Legacy","author":"a","createdAt":1,"stickers":[],"trayImage":""}""")
+        val migrated = reopened.getPack("legacy")!!
+        assertFalse(migrated.isSingles)
+        assertEquals(1L, migrated.contentVersion)
+        assertTrue(migrated.displayId.isNotBlank())
+    }
+
+    @Test
+    fun singlesHideAndRemoveStartersAtThreeUserStickersAndNeverRestoreThem() {
+        val repository = repo()
+        val pack = repository.getOrCreateSingles(listOf(byteArrayOf(1), byteArrayOf(2)))
+        assertEquals("Stikr", pack.name)
+        assertEquals(2, pack.stickerCount)
+        assertEquals(0, pack.userStickerCount)
+        repository.addSticker(pack.id, byteArrayOf(3), "user1.webp")
+        repository.addSticker(pack.id, byteArrayOf(4), "user2.webp")
+        repository.setTrayImage(pack.id, byteArrayOf(7), "tray.png")
+        val third = repository.addSticker(pack.id, byteArrayOf(5), "user3.webp")!!
+        assertNull("Removing starters invalidates their tray icon", third.trayImage)
+        assertEquals(3, third.userStickerCount)
+        assertTrue(third.starterStickers.isEmpty())
+        assertEquals(listOf("user1.webp", "user2.webp", "user3.webp"), third.stickers)
+        repository.deleteSticker(pack.id, "user3.webp")
+        assertEquals(2, repository.getOrCreateSingles(listOf(byteArrayOf(9))).userStickerCount)
+        assertEquals(2, repository.getPack(pack.id)!!.stickerCount)
+    }
+
+    @Test
+    fun singlesRollOverAtThirtyAndKeepEarlierPackIdentity() {
+        val repository = repo()
+        val first = repository.getOrCreateSingles(emptyList())
+        repeat(30) { repository.addSticker(first.id, byteArrayOf(it.toByte()), "user_$it.webp") }
+        val second = repository.getOrCreateSingles(listOf(byteArrayOf(1), byteArrayOf(2)))
+        assertEquals(2, second.starterStickers.size)
+        assertEquals(0, second.userStickerCount)
+        assertTrue(second.id != first.id)
+        assertEquals("Stikr 2", second.name)
+        assertEquals(30, repository.getPack(first.id)!!.userStickerCount)
+        assertEquals(first.displayId, repository.getPack(first.id)!!.displayId)
+    }
+
+    @Test
+    fun editsAndThumbnailsBumpPersistentVersionAndThumbnailIsPrivate() {
+        val repository = repo()
+        val pack = repository.createPack("Versioned")
+        val added = repository.addSticker(pack.id, byteArrayOf(1), "one.webp")!!
+        val edited = repository.replaceSticker(pack.id, "one.webp", byteArrayOf(2))!!
+        assertTrue(edited.contentVersion > added.contentVersion)
+        val thumb = repository.setPackThumbnail(pack.id, byteArrayOf(3))!!
+        assertTrue(thumb.contentVersion > edited.contentVersion)
+        assertNotNull(File(temp.root, "packs/${pack.id}/${PackRepository.THUMBNAIL_FILE}").takeIf { it.isFile })
+        assertNull(repository.stickerFile(pack.id, PackRepository.THUMBNAIL_FILE))
     }
 }

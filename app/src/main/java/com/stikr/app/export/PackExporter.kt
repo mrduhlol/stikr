@@ -47,6 +47,10 @@ object PackExporter {
      * `validation_error`; an Application-context NEW_TASK launch loses both.
      */
     fun createWhatsAppIntent(context: Context, pack: StickerPack): Intent? {
+        require(pack.stickerCount <= PackRepository.MAX_WHATSAPP_STICKERS) {
+            "WhatsApp packs cannot contain more than ${PackRepository.MAX_WHATSAPP_STICKERS} stickers"
+        }
+        if (pack.stickerCount < PackRepository.MIN_WHATSAPP_STICKERS) return null
         val installed = availablePackages(context)
         val hasActionHandler = resolvesWhatsAppAction(context)
         if (installed.isEmpty() && !hasActionHandler) return null
