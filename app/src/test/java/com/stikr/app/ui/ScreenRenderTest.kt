@@ -465,7 +465,7 @@ class ScreenRenderTest {
      */
     private fun capture(name: String, scrollTo: String? = null) {
         if (scrollTo != null) {
-            compose.onNodeWithText(scrollTo).performScrollTo()
+            compose.onNodeWithText(scrollTo, ignoreCase = true).performScrollTo()
             settle()
         }
         val view: View = compose.activity.findViewById(android.R.id.content)
