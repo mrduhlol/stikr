@@ -121,7 +121,19 @@ fun StikrApp(
             showTour -> TourOverlay(onDone = viewModel::completeTour)
 
             currentBatch != null -> BatchScreen(
-                state = currentBatch,
+                // Use repository snapshots so failed deletions never disappear optimistically.
+                state = if (currentBatch.phase == BatchPhase.DONE) currentBatch.copy(
+                    created = currentBatch.created.map { created -> packs.firstOrNull { it.id == created.id } ?: created },
+                ) else currentBatch,
+                onEditSticker = { id, fileName ->
+                    packId = id
+                    savingToNewPack = false
+                    viewModel.editSticker(id, fileName)
+                    viewModel.dismissBatch()
+                    screen = Screen.EDITOR.name
+                },
+                onShareSticker = viewModel::shareSticker,
+                onDeleteSticker = viewModel::deleteSticker,
                 onCancel = viewModel::cancelBatch,
                 onDone = viewModel::dismissBatch,
                 onOpenPack = { id ->
@@ -149,7 +161,9 @@ fun StikrApp(
                         onOpenPack = ::openPack,
                         onCreatePack = { name -> viewModel.createPack(name) { openPack(it.id) } },
                         onMakeSticker = ::makeSticker,
-                        onStartBatch = { title, author, uris -> viewModel.startBatch(title, author, uris) },
+                        onStartBatch = { title, author, uris, removeBackground ->
+                            viewModel.startBatch(title, author, uris, removeBackground)
+                        },
                         onShowTour = viewModel::replayTour,
                         onSettings = { screen = Screen.SETTINGS.name },
                     )

@@ -1,5 +1,10 @@
 package com.stikr.app.ui
 
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -53,7 +58,7 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
     private fun showCreateDialog(dark: Boolean) {
         compose.setContent {
             StikrTheme(darkTheme = dark) {
-                CreateBatchDialog(onDismiss = {}, onConfirm = { _, _ -> })
+                CreateBatchDialog(onDismiss = {}, onConfirm = { _, _, _ -> })
             }
         }
         settle()
@@ -65,7 +70,7 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
         var author = ""
         compose.setContent {
             StikrTheme(darkTheme = false) {
-                CreateBatchDialog(onDismiss = {}, onConfirm = { t, a ->
+                CreateBatchDialog(onDismiss = {}, onConfirm = { t, a, _ ->
                     title = t
                     author = a
                 })
@@ -84,7 +89,7 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
         var author = ""
         compose.setContent {
             StikrTheme(darkTheme = false) {
-                CreateBatchDialog(onDismiss = {}, onConfirm = { t, a ->
+                CreateBatchDialog(onDismiss = {}, onConfirm = { t, a, _ ->
                     title = t
                     author = a
                 })
@@ -139,7 +144,7 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
     }
 
     @Test
-    fun packRowOpensItsPack() {
+    fun pagerSwipesAndEditOpensItsPack() {
         var opened = ""
         compose.setContent {
             StikrTheme(darkTheme = false) {
@@ -152,7 +157,11 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
             }
         }
         settle()
-        compose.onNodeWithText("Beach trip 2", ignoreCase = true).performClick()
+        compose.onNodeWithTag("batch-pager").performTouchInput { swipeLeft() }
+        compose.waitForIdle()
+        compose.onNodeWithText("Pack 2 of 2 · Swipe to browse").assertIsDisplayed()
+        capture("batch-done-second-pack")
+        compose.onNodeWithContentDescription("Edit pack Beach trip 2").performClick()
         compose.waitForIdle()
         assertEquals("pack-b2", opened)
     }
@@ -178,7 +187,7 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
         showDone(doneState(created = listOf(packFixture("pack-b1", "Beach trip 1", 30))))
         compose.onNodeWithText("1 pack created", ignoreCase = true).assertIsDisplayed()
         compose.onNodeWithText(SUMMARY_WITH_SUFFIXES, ignoreCase = true).assertIsDisplayed()
-        compose.onNodeWithText("Beach trip 1", ignoreCase = true).assertIsDisplayed()
+        compose.onNodeWithText("— BEACH TRIP 1 —").assertIsDisplayed()
     }
 
     @Test
@@ -256,6 +265,61 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
         compose.onNodeWithText("Nothing made so far will be kept.").assertIsDisplayed()
         assertFalse("Back must ask before cancelling", cancelled)
         assertFalse("Back must not leave the batch", compose.activity.isFinishing)
+    }
+
+    @Test
+    fun backgroundRemovalDefaultsOffAndCanBeEnabled() {
+        var enabled = false
+        compose.setContent {
+            StikrTheme(darkTheme = false) {
+                CreateBatchDialog(onDismiss = {}, onConfirm = { _, _, remove -> enabled = remove })
+            }
+        }
+        settle()
+        compose.onNodeWithContentDescription("Remove background").assertIsOff()
+        compose.onNodeWithText("Pick photos", ignoreCase = true).performClick()
+        assertFalse(enabled)
+        compose.onNodeWithContentDescription("Remove background").performClick()
+        compose.onNodeWithText("Pick photos", ignoreCase = true).performClick()
+        assertTrue(enabled)
+    }
+
+    @Test
+    fun stickerSheetRequiresDeleteConfirmation() {
+        var deleted = ""
+        compose.setContent {
+            StikrTheme(darkTheme = false) {
+                BatchScreen(
+                    state = doneState(created = listOf(packFixture(count = 3))),
+                    onCancel = {}, onDone = {}, onOpenPack = {},
+                    onDeleteSticker = { id, name -> deleted = "$id/$name" },
+                )
+            }
+        }
+        settle()
+        compose.onNodeWithContentDescription("Sticker 1").performClick()
+        compose.onNodeWithText("Edit sticker", ignoreCase = true).assertIsDisplayed()
+        compose.onNodeWithText("Share", ignoreCase = true).assertIsDisplayed()
+        captureDialog("batch-sticker-sheet")
+        compose.onNodeWithText("Delete", ignoreCase = true).performClick()
+        assertEquals("", deleted)
+        compose.onNodeWithText("Keep", ignoreCase = true).performClick()
+        assertEquals("", deleted)
+        compose.onNodeWithContentDescription("Sticker 1").performClick()
+        compose.onNodeWithText("Delete", ignoreCase = true).performClick()
+        compose.onNodeWithText("Delete", ignoreCase = true).performClick()
+        assertEquals("pack-1/s1.webp", deleted)
+    }
+
+    @Test
+    fun processingNamesBackgroundRemoval() {
+        compose.setContent {
+            StikrTheme(darkTheme = false) {
+                BatchScreen(runningState().copy(removeBackground = true), {}, {}, {})
+            }
+        }
+        settle()
+        compose.onNodeWithText("Cutting out the subject…").assertIsDisplayed()
     }
 
     private fun runningState() = BatchState(

@@ -1,6 +1,21 @@
 package com.stikr.app.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.stikr.app.ui.neo.NeoIconButton
+import com.stikr.app.ui.neo.NeoSwitch
+import com.stikr.app.ui.theme.NeoShapes
+import java.io.File
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +37,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.stikr.app.data.PackRepository
@@ -47,10 +61,13 @@ fun BatchScreen(
     onCancel: () -> Unit,
     onDone: () -> Unit,
     onOpenPack: (String) -> Unit,
+    onEditSticker: (String, String) -> Unit = { _, _ -> },
+    onShareSticker: (String, String) -> Unit = { _, _ -> },
+    onDeleteSticker: (String, String) -> Unit = { _, _ -> },
 ) {
     when (state.phase) {
         BatchPhase.PROCESSING -> ProcessingScreen(state = state, onCancel = onCancel)
-        BatchPhase.DONE -> DoneScreen(state = state, onDone = onDone, onOpenPack = onOpenPack)
+        BatchPhase.DONE -> DoneScreen(state, onDone, onOpenPack, onEditSticker, onShareSticker, onDeleteSticker)
     }
 }
 
@@ -114,7 +131,7 @@ private fun ProcessingScreen(state: BatchState, onCancel: () -> Unit) {
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "Making stickers\u2026",
+                        text = if (state.removeBackground) "Cutting out the subject…" else "Making stickers…",
                         style = MaterialTheme.typography.bodyMedium,
                         color = palette.muted,
                     )
@@ -165,7 +182,14 @@ private fun StopDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
 }
 
 @Composable
-private fun DoneScreen(state: BatchState, onDone: () -> Unit, onOpenPack: (String) -> Unit) {
+private fun DoneScreen(
+    state: BatchState,
+    onDone: () -> Unit,
+    onOpenPack: (String) -> Unit,
+    onEditSticker: (String, String) -> Unit,
+    onShareSticker: (String, String) -> Unit,
+    onDeleteSticker: (String, String) -> Unit,
+) {
     val palette = Neo.palette
 
     BackHandler { onDone() }
@@ -191,7 +215,6 @@ private fun DoneScreen(state: BatchState, onDone: () -> Unit, onOpenPack: (Strin
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
                 .padding(horizontal = NeoDimens.gutter),
         ) {
             Spacer(Modifier.height(26.dp))
@@ -215,36 +238,123 @@ private fun DoneScreen(state: BatchState, onDone: () -> Unit, onOpenPack: (Strin
                     color = palette.muted,
                 )
                 Spacer(Modifier.height(22.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    state.created.forEach { pack ->
-                        PackRow(pack = pack, onClick = { onOpenPack(pack.id) })
-                    }
+                val pager = rememberPagerState(pageCount = { state.created.size })
+                if (state.created.size > 1) {
+                    Text(
+                        text = "Pack ${pager.currentPage + 1} of ${state.created.size} · Swipe to browse",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = palette.muted,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
                 }
-                Spacer(Modifier.height(24.dp))
+                HorizontalPager(
+                    state = pager,
+                    key = { state.created[it].id },
+                    modifier = Modifier.weight(1f).testTag("batch-pager"),
+                    pageSpacing = 16.dp,
+                    verticalAlignment = Alignment.Top,
+                ) { page ->
+                    BatchPackPage(state.created[page], onOpenPack, onEditSticker, onShareSticker, onDeleteSticker)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun PackRow(pack: StickerPack, onClick: () -> Unit) {
+private fun BatchPackPage(
+    pack: StickerPack,
+    onOpenPack: (String) -> Unit,
+    onEditSticker: (String, String) -> Unit,
+    onShareSticker: (String, String) -> Unit,
+    onDeleteSticker: (String, String) -> Unit,
+) {
     val palette = Neo.palette
-    NeoCard(
-        modifier = Modifier.fillMaxWidth(),
-        padding = PaddingValues(16.dp),
-        onClick = onClick,
+    val context = LocalContext.current
+    val dir = remember(context, pack.id) { File(context.filesDir, "packs/${pack.id}") }
+    var selected by rememberSaveable(pack.id) { mutableStateOf<String?>(null) }
+    var deleting by rememberSaveable(pack.id) { mutableStateOf<String?>(null) }
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            .padding(end = NeoDimens.shadowSmall, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        Box(Modifier.fillMaxWidth()) {
+            NeoCard(
+                modifier = Modifier.fillMaxWidth().height(220.dp),
+                fill = palette.creamDim,
+                padding = PaddingValues(24.dp),
+            ) {
+                val first = pack.stickers.firstOrNull()
+                if (first != null) {
+                    StickerImage(dir.resolve(first), "${pack.name} thumbnail", Modifier.fillMaxSize())
+                } else {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("No stickers yet", color = palette.muted)
+                    }
+                }
+            }
+            NeoIconButton(
+                onClick = { onOpenPack(pack.id) },
+                icon = Icons.Default.Edit,
+                contentDescription = "Edit pack ${pack.name}",
+                modifier = Modifier.align(Alignment.TopEnd).padding(10.dp),
+            )
+        }
         Text(
-            text = pack.name.uppercase(),
-            style = MaterialTheme.typography.titleLarge,
+            text = "— ${pack.name.uppercase()} —",
+            style = MaterialTheme.typography.headlineMedium,
             color = palette.ink,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
         )
-        Text(
-            text = if (pack.stickerCount == 1) "1 sticker" else "${pack.stickerCount} stickers",
-            style = MaterialTheme.typography.bodySmall,
-            color = palette.muted,
+        pack.stickers.chunked(3).forEachIndexed { row, names ->
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                names.forEachIndexed { column, name ->
+                    val number = row * 3 + column + 1
+                    NeoCard(
+                        modifier = Modifier.weight(1f).aspectRatio(1f)
+                            .semantics { contentDescription = "Sticker $number" },
+                        fill = palette.creamDim,
+                        shape = NeoShapes.tile,
+                        shadow = NeoDimens.shadowSmall + 1.dp,
+                        padding = PaddingValues(10.dp),
+                        onClick = { selected = name },
+                        onClickLabel = "Edit, share or delete",
+                    ) {
+                        StickerImage(dir.resolve(name), null, Modifier.fillMaxSize())
+                    }
+                }
+                repeat(3 - names.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+    selected?.takeIf { it in pack.stickers }?.let { name ->
+        NeoDialog(
+            onDismiss = { selected = null },
+            title = "Make it yours",
+            body = {
+                StickerImage(dir.resolve(name), "Selected sticker", Modifier.fillMaxWidth().height(200.dp))
+                Spacer(Modifier.height(16.dp))
+                NeoButton("Edit sticker", onClick = {
+                    selected = null
+                    onEditSticker(pack.id, name)
+                }, modifier = Modifier.fillMaxWidth())
+            },
+            actions = {
+                NeoOutlinedButton("Delete", onClick = { selected = null; deleting = name }, modifier = Modifier.weight(1f))
+                NeoButton("Share", onClick = { selected = null; onShareSticker(pack.id, name) }, modifier = Modifier.weight(1f))
+            },
+        )
+    }
+    deleting?.takeIf { it in pack.stickers }?.let { name ->
+        ConfirmDialog(
+            kicker = "Can’t be undone",
+            title = "Delete sticker?",
+            body = "It’s removed from “${pack.name}”. Copies already imported into WhatsApp stay.",
+            confirmLabel = "Delete",
+            dismissLabel = "Keep",
+            onDismiss = { deleting = null },
+            onConfirm = { deleting = null; onDeleteSticker(pack.id, name) },
         )
     }
 }
@@ -264,8 +374,9 @@ private fun summaryLine(state: BatchState): String {
 @Composable
 fun CreateBatchDialog(
     onDismiss: () -> Unit,
-    onConfirm: (title: String, author: String) -> Unit,
+    onConfirm: (title: String, author: String, removeBackground: Boolean) -> Unit,
 ) {
+    var removeBackground by rememberSaveable { mutableStateOf(false) }
     var title by rememberSaveable { mutableStateOf("My stickers") }
     var author by rememberSaveable { mutableStateOf(PackRepository.DEFAULT_AUTHOR) }
 
@@ -284,6 +395,14 @@ fun CreateBatchDialog(
                     onValueChange = { author = it },
                     label = "Author",
                 )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Remove background", modifier = Modifier.weight(1f), color = Neo.palette.ink)
+                    NeoSwitch(
+                        checked = removeBackground,
+                        onCheckedChange = { removeBackground = it },
+                        contentDescription = "Remove background",
+                    )
+                }
             }
         },
         actions = {
@@ -299,6 +418,7 @@ fun CreateBatchDialog(
                     onConfirm(
                         title.trim().ifEmpty { "My stickers" },
                         author.trim().ifEmpty { PackRepository.DEFAULT_AUTHOR },
+                        removeBackground,
                     )
                 },
                 modifier = Modifier.weight(1f),

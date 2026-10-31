@@ -449,7 +449,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     // --------------------------------------------------------------- batch
 
-    fun startBatch(title: String, author: String, uris: List<Uri>) {
+    fun startBatch(title: String, author: String, uris: List<Uri>, removeBackground: Boolean = false) {
         if (uris.isEmpty() || _batch.value != null || batchJob?.isActive == true) return
         val safeTitle = title.trim().ifEmpty { "My stickers" }
         val safeAuthor = author.trim().ifEmpty { PackRepository.DEFAULT_AUTHOR }
@@ -458,11 +458,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             author = safeAuthor,
             total = uris.size,
             expectedPacks = BatchPlanner.chunkSizes(uris.size).size,
+            removeBackground = removeBackground,
         )
         batchCancelled = false
         batchJob = viewModelScope.launch {
             try {
-                runBatch(uris, safeTitle, safeAuthor)
+                runBatch(uris, safeTitle, safeAuthor, removeBackground)
             } finally {
                 batchJob = null
             }
@@ -591,7 +592,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * is counted as failed and the run continues. The batch always leaves
      * PROCESSING: the finally block publishes DONE, or clears it when stopped.
      */
-    private suspend fun runBatch(uris: List<Uri>, title: String, author: String) {
+    private suspend fun runBatch(uris: List<Uri>, title: String, author: String, removeBackground: Boolean) {
         val createdIds = mutableListOf<String>()
         val expectedPacks = BatchPlanner.chunkSizes(uris.size).size
         var packId: String? = null
@@ -611,7 +612,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     } else {
                         try {
                             val (subject, photoFellBack) =
-                                process(source, cutout = false, cutter = subjectCutout)
+                                process(source, cutout = removeBackground, cutter = subjectCutout)
                             try {
                                 val preview = withContext(Dispatchers.Default) {
                                     StickerRenderer.render(subject, StickerRenderer.Style())
