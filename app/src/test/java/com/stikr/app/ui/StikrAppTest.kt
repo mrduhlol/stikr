@@ -250,6 +250,7 @@ class StikrAppTest : ScreenRenderHarness() {
     /** Opens the editor for the first pack, with a photo loaded and ready to save. */
     private fun openReadyEditor(viewModel: MainViewModel) {
         compose.onNodeWithText("Create a\nsticker", ignoreCase = true).performClick()
+        await { viewModel.editor.value != null }
         settle()
         viewModel.setCutout(false)
         viewModel.loadImage(photoUri())
