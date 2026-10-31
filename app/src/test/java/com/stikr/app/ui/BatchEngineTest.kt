@@ -250,6 +250,7 @@ class BatchEngineTest {
         vm.subjectCutout = { error("Auto cutout must be opt-in") }
 
         vm.startBatch("Keepers", "Ada", uris(3))
+        assertFalse("the toggle defaults to off", vm.batch.value!!.removeBackground)
         val state = awaitBatch(vm)
 
         assertEquals(3, state.saved)
@@ -259,6 +260,44 @@ class BatchEngineTest {
         val pack = repo().listPacks().single()
         assertEquals("Keepers", pack.name)
         assertEquals(3, pack.stickerCount)
+    }
+
+    @Test
+    fun batchCanCutOutPhotosWithoutCountingSuccessfulCutoutsAsFallbacks() {
+        val vm = viewModel(true, true)
+        var cutterCalls = 0
+        vm.subjectCutout = { bitmap ->
+            cutterCalls++
+            bitmap.copy(Bitmap.Config.ARGB_8888, false)
+        }
+
+        vm.startBatch("Cutouts", "Ada", uris(2), removeBackground = true)
+        assertTrue("the processing state exposes the selected option", vm.batch.value!!.removeBackground)
+        val state = awaitBatch(vm)
+
+        assertEquals(2, cutterCalls)
+        assertTrue("the completed state retains the selected option", state.removeBackground)
+        assertEquals(2, state.saved)
+        assertEquals("successful cutouts are not photo fallbacks", 0, state.fellBack)
+        assertEquals(0, state.failed)
+    }
+
+    @Test
+    fun batchCountsPhotosAsFallbacksWhenCutoutReturnsNull() {
+        val vm = viewModel(true, true)
+        var cutterCalls = 0
+        vm.subjectCutout = {
+            cutterCalls++
+            null
+        }
+
+        vm.startBatch("Fallbacks", "Ada", uris(2), removeBackground = true)
+        val state = awaitBatch(vm)
+
+        assertEquals(2, cutterCalls)
+        assertEquals(2, state.saved)
+        assertEquals("null cutouts keep the full photo", 2, state.fellBack)
+        assertEquals(0, state.failed)
     }
 
     @Test

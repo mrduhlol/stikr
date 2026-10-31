@@ -10,11 +10,21 @@ No account, no upload, no watermark.
 ![On device](docs/site/assets/badge-local.svg)
 ![No account](docs/site/assets/badge-free.svg)
 
-**[DOWNLOAD APK ↓](https://github.com/mrduhlol/stikr/releases/latest/download/stikr.apk)**
+[![Download normal APK](https://img.shields.io/badge/Download-Normal_APK-723AF4?style=for-the-badge&logo=android&logoColor=white)](https://github.com/mrduhlol/stikr/releases/latest/download/stikr.apk)
+[![Download debug APK](https://img.shields.io/badge/Download-Debug_APK-555555?style=for-the-badge&logo=android&logoColor=white)](https://github.com/mrduhlol/stikr/actions/workflows/build-apk.yml)
 · **[READ THE DOCS ↗](https://mrduhlol.github.io/stikr/)**
 · [Releases](https://github.com/mrduhlol/stikr/releases)
 
-Current version **v0.1**. APK approximately **7.9 MB**. Free, for Android 8.0 and newer.
+Free, for Android 8.0 and newer.
+
+| Download | What it does | Who should use it |
+| :--- | :--- | :--- |
+| **Normal APK (release)** | The everyday app: create and edit sticker packs, remove backgrounds, share stickers, and add packs to WhatsApp. Uses the persistent release signing key and excludes Compose preview tooling. | **Recommended for everyday use.** The button downloads `stikr.apk` directly. |
+| **Debug APK** | The same sticker features, with Android debugging enabled and Compose tooling included for development and troubleshooting. Usually larger; it does not unlock extra sticker features. | Developers and testers. The button opens GitHub Actions: choose a successful **Build APK** run, download the **stikr** artifact, and unzip it to get the APK. GitHub sign-in is required to download artifacts. |
+
+Normal and debug APKs use different signing keys, so Android cannot install one
+over the other. Switching requires uninstalling the existing app, which removes
+its local packs. Debug builds from different CI runs may also have different keys.
 
 ---
 

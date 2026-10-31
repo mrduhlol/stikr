@@ -71,7 +71,7 @@ fun HomeScreen(
     onOpenPack: (String) -> Unit,
     onCreatePack: (String) -> Unit,
     onMakeSticker: () -> Unit,
-    onStartBatch: (String, String, List<Uri>) -> Unit,
+    onStartBatch: (String, String, List<Uri>, Boolean) -> Unit,
     onShowTour: () -> Unit,
     onSettings: () -> Unit = {},
 ) {
@@ -81,9 +81,10 @@ fun HomeScreen(
     // The photo picker returns after the naming dialog has closed.
     var pendingTitle by rememberSaveable { mutableStateOf("") }
     var pendingAuthor by rememberSaveable { mutableStateOf(PackRepository.DEFAULT_AUTHOR) }
+    var pendingRemoveBackground by rememberSaveable { mutableStateOf(false) }
     val bars = WindowInsets.systemBars.asPaddingValues()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
-        if (uris.isNotEmpty()) onStartBatch(pendingTitle, pendingAuthor, uris)
+        if (uris.isNotEmpty()) onStartBatch(pendingTitle, pendingAuthor, uris, pendingRemoveBackground)
     }
 
     LazyVerticalGrid(
@@ -239,10 +240,11 @@ fun HomeScreen(
     if (showCreateBatch) {
         CreateBatchDialog(
             onDismiss = { showCreateBatch = false },
-            onConfirm = { title, author ->
+            onConfirm = { title, author, removeBackground ->
                 showCreateBatch = false
                 pendingTitle = title
                 pendingAuthor = author
+                pendingRemoveBackground = removeBackground
                 picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             },
         )

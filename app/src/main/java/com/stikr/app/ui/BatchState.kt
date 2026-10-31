@@ -17,6 +17,7 @@ data class BatchState(
     val author: String,
     val total: Int,
     val expectedPacks: Int,
+    val removeBackground: Boolean = false,
     val processed: Int = 0,
     val saved: Int = 0,
     val fellBack: Int = 0,

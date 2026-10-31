@@ -47,7 +47,7 @@ class ScreenRenderTest {
                     onOpenPack = {},
                     onCreatePack = {},
                     onMakeSticker = {},
-                    onStartBatch = { _, _, _ -> },
+                    onStartBatch = { _, _, _, _ -> },
                     onShowTour = {},
                 )
             }
@@ -66,7 +66,7 @@ class ScreenRenderTest {
                     onOpenPack = {},
                     onCreatePack = {},
                     onMakeSticker = {},
-                    onStartBatch = { _, _, _ -> },
+                    onStartBatch = { _, _, _, _ -> },
                     onShowTour = {},
                 )
             }
@@ -85,7 +85,7 @@ class ScreenRenderTest {
                     onOpenPack = {},
                     onCreatePack = {},
                     onMakeSticker = {},
-                    onStartBatch = { _, _, _ -> },
+                    onStartBatch = { _, _, _, _ -> },
                     onShowTour = {},
                 )
             }
@@ -101,7 +101,7 @@ class ScreenRenderTest {
             StikrTheme(darkTheme = true, amoled = true) {
                 HomeScreen(
                     packs = packs, onOpenPack = {}, onCreatePack = {}, onMakeSticker = {},
-                    onStartBatch = { _, _, _ -> }, onShowTour = {},
+                    onStartBatch = { _, _, _, _ -> }, onShowTour = {},
                 )
             }
         }
@@ -302,7 +302,7 @@ class ScreenRenderTest {
                     onOpenPack = {},
                     onCreatePack = {},
                     onMakeSticker = {},
-                    onStartBatch = { _, _, _ -> },
+                    onStartBatch = { _, _, _, _ -> },
                     onShowTour = {},
                 )
             }
