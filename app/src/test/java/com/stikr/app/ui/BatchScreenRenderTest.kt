@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import com.stikr.app.data.PackRepository
@@ -193,7 +194,7 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
         showDone(doneState(created = listOf(packFixture("pack-b1", "Beach trip 1", 30))))
         compose.onNodeWithText("1 pack created", ignoreCase = true).assertIsDisplayed()
         compose.onNodeWithText(SUMMARY_WITH_SUFFIXES, ignoreCase = true).assertIsDisplayed()
-        compose.onNodeWithText("— BEACH TRIP 1 —").assertIsDisplayed()
+        compose.onNodeWithText("Beach trip 1", ignoreCase = true).performScrollTo().assertIsDisplayed()
     }
 
     @Test
