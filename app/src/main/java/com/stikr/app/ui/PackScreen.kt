@@ -54,7 +54,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.stikr.app.data.PackRepository
 import com.stikr.app.data.StickerPack
-import com.stikr.app.export.PackExporter
 import com.stikr.app.ui.neo.Neo
 import com.stikr.app.ui.neo.NeoButton
 import com.stikr.app.ui.neo.NeoCard
@@ -94,7 +93,6 @@ fun PackScreen(
     var showDelete by rememberSaveable { mutableStateOf(false) }
     var openSticker by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmSticker by rememberSaveable { mutableStateOf<String?>(null) }
-    val whatsAppInstalled = remember { PackExporter.isWhatsAppInstalled(context) }
     val count = pack.stickerCount
     val full = count >= PackRepository.MAX_WHATSAPP_STICKERS
     val remaining = (PackRepository.MAX_WHATSAPP_STICKERS - count).coerceAtLeast(0)
@@ -134,6 +132,18 @@ fun PackScreen(
                     onRename = { showRename = true },
                     onDelete = { showDelete = true },
                 )
+            }
+
+            pack.stickers.firstOrNull()?.let { first ->
+                item(span = { GridItemSpan(maxLineSpan) }, key = "thumbnail") {
+                    NeoCard(
+                        modifier = Modifier.fillMaxWidth().height(220.dp),
+                        fill = palette.creamDim,
+                        padding = PaddingValues(24.dp),
+                    ) {
+                        StickerImage(dir.resolve(first), "${pack.name} thumbnail", Modifier.fillMaxSize())
+                    }
+                }
             }
 
             if (importing) {
@@ -183,7 +193,6 @@ fun PackScreen(
         ExportBar(
             modifier = Modifier.align(Alignment.BottomCenter),
             count = count,
-            whatsAppInstalled = whatsAppInstalled,
             exporting = exporting,
             onExport = onExport,
         )
@@ -317,21 +326,16 @@ private fun TopBar(
 /**
  * The WhatsApp action, pinned at the bottom of the pack screen: the import
  * button once the pack qualifies, a "more to go" hint while it doesn't, the
- * preparing spinner mid-export, and the no-WhatsApp fallback that points at
- * sharing stickers one by one.
+ * preparing spinner mid-export. Package availability is checked when tapped.
  */
 @Composable
 private fun ExportBar(
     modifier: Modifier = Modifier,
     count: Int,
-    whatsAppInstalled: Boolean,
     exporting: Boolean,
     onExport: () -> Unit,
 ) {
     val palette = Neo.palette
-    val min = PackRepository.MIN_WHATSAPP_STICKERS
-    val missing = (min - count).coerceAtLeast(0)
-    val ready = whatsAppInstalled && missing == 0
     val nav = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
 
     Column(
@@ -354,49 +358,54 @@ private fun ExportBar(
                 bottom = 14.dp,
             ),
         ) {
-            if (!whatsAppInstalled) {
-                Text(
-                    text = "WhatsApp isn’t on this phone — tap any sticker above to share it as an image",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = palette.muted,
-                    modifier = Modifier.padding(bottom = 10.dp),
-                )
-            } else if (!ready) {
-                Text(
-                    text = if (missing == 1) {
-                        "1 more sticker — WhatsApp takes packs of $min or more"
-                    } else {
-                        "$missing more stickers — WhatsApp takes packs of $min or more"
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = palette.muted,
-                    modifier = Modifier.padding(bottom = 10.dp),
-                )
-            }
-            if (exporting) {
-                // Same height as the button, so the band doesn't jump mid-export.
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 52.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Preparing pack…", style = MaterialTheme.typography.labelMedium)
-                        Spacer(Modifier.height(10.dp))
-                        NeoProgressBar(contentDescription = "Preparing pack for WhatsApp")
-                    }
-                }
+            WhatsAppPackAction(count, exporting, onExport)
+        }
+    }
+}
+
+/** Eligibility is local; the view model checks current WhatsApp availability on tap. */
+@Composable
+internal fun WhatsAppPackAction(count: Int, exporting: Boolean, onExport: () -> Unit) {
+    val palette = Neo.palette
+    val min = PackRepository.MIN_WHATSAPP_STICKERS
+    val missing = (min - count).coerceAtLeast(0)
+    val ready = count in min..PackRepository.MAX_WHATSAPP_STICKERS
+    if (!ready) {
+        Text(
+            text = if (count > PackRepository.MAX_WHATSAPP_STICKERS) {
+                "WhatsApp takes packs of 3–30 stickers. Remove ${count - PackRepository.MAX_WHATSAPP_STICKERS} to continue."
+            } else if (missing == 1) {
+                "1 more sticker — WhatsApp takes packs of $min or more"
             } else {
-                NeoButton(
-                    text = "Add to WhatsApp",
-                    onClick = onExport,
-                    enabled = ready,
-                    haptic = NeoHaptic.Confirm,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                "$missing more stickers — WhatsApp takes packs of $min or more"
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = palette.muted,
+            modifier = Modifier.padding(bottom = 10.dp),
+        )
+    }
+    if (exporting) {
+        // Same height as the button, so the band doesn't jump mid-export.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 52.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Preparing pack…", style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.height(10.dp))
+                NeoProgressBar(contentDescription = "Preparing pack for WhatsApp")
             }
         }
+    } else {
+        NeoButton(
+            text = "Add to WhatsApp",
+            onClick = onExport,
+            enabled = ready,
+            haptic = NeoHaptic.Confirm,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

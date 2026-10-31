@@ -3,12 +3,11 @@ name: Build APK
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -42,15 +41,8 @@ jobs:
             "$SDKMGR" "${packages[@]}"
           fi
 
-      # Build all required variants in one Gradle process. Tagged releases keep
-      # using the persistent repo signing key configured in app/build.gradle.kts.
-      - name: Build APKs and run unit tests
-        run: |
-          tasks=(assembleDebug testDebugUnitTest)
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            tasks+=(assembleRelease)
-          fi
-          ./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx1536m "${tasks[@]}" --stacktrace
+      - name: Build signed APK and run unit tests
+        run: ./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx1536m assembleRelease testDebugUnitTest --stacktrace
 
       - name: Upload unit test reports
         if: always()
@@ -62,34 +54,22 @@ jobs:
             app/build/test-results/testDebugUnitTest/*.xml
           if-no-files-found: ignore
 
-      - name: Rename APK with version
-        run: |
-          VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          mv app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/stikr.v${VERSION}.apk"
-          # Stable filename: README links to this so version bumps never break the download.
-          cp "app/build/outputs/apk/debug/stikr.v${VERSION}.apk" app/build/outputs/apk/debug/stikr.apk
+      - name: Prepare the download
+        run: cp app/build/outputs/apk/release/app-release.apk stikr.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: stikr
-          path: app/build/outputs/apk/debug/stikr*.apk
+          path: stikr.apk
 
-      - name: Rename signed release APK
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Update the single app download
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          SIGNED=$(ls app/build/outputs/apk/release/app-release*.apk | head -n 1)
-          mv "$SIGNED" "app/build/outputs/apk/release/stikr.v${VERSION}.apk"
-          # Stable filename: README links to this so version bumps never break the download.
-          cp "app/build/outputs/apk/release/stikr.v${VERSION}.apk" app/build/outputs/apk/release/stikr.apk
-
-      # On tags like v0.1, attach the APK to a GitHub Release so README can link it.
-      - name: Release APK
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            app/build/outputs/apk/release/stikr.v*.apk
-            app/build/outputs/apk/release/stikr.apk
-          generate_release_notes: true
+          if ! gh release view app > /dev/null 2>&1; then
+            gh release create app --target "$GITHUB_SHA" --title "stikr" --notes "Download stikr.apk below. This download is updated automatically." --latest
+          fi
+          gh release upload app stikr.apk --clobber
+          gh release edit app --title "stikr" --notes "Download stikr.apk below. Built from main commit $GITHUB_SHA. Install over the previous normal APK to keep your packs." --latest

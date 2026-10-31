@@ -21,7 +21,8 @@ object PackExporter {
 
     fun authority(context: Context): String = "${context.packageName}.stickercontentprovider"
 
-    fun isWhatsAppInstalled(context: Context): Boolean = WA_PACKAGES.any { isInstalled(context, it) }
+    fun isWhatsAppInstalled(context: Context): Boolean = availablePackages(context).isNotEmpty() ||
+        resolvesWhatsAppAction(context)
 
     /** Writes a PNG tray icon (96x96), matching the WhatsApp asset contract. */
     suspend fun ensureTray(context: Context, repo: PackRepository, pack: StickerPack): StickerPack =
@@ -46,14 +47,19 @@ object PackExporter {
      * `validation_error`; an Application-context NEW_TASK launch loses both.
      */
     fun createWhatsAppIntent(context: Context, pack: StickerPack): Intent? {
-        val installed = WA_PACKAGES.filter { isInstalled(context, it) }
-        if (installed.isEmpty()) return null
+        val installed = availablePackages(context)
+        val hasActionHandler = resolvesWhatsAppAction(context)
+        if (installed.isEmpty() && !hasActionHandler) return null
         val intent = Intent(WA_ACTION)
             .putExtra("sticker_pack_id", pack.id)
             .putExtra("sticker_pack_authority", authority(context))
             .putExtra("sticker_pack_name", pack.name.take(128))
         return if (installed.size == 1) {
             intent.setPackage(installed.single())
+        } else if (installed.isEmpty()) {
+            // Some compatible handlers do not expose package metadata to us.
+            // Keep the action implicit so Android can route it to that handler.
+            intent
         } else {
             Intent.createChooser(intent, "Add to WhatsApp")
         }
@@ -85,6 +91,15 @@ object PackExporter {
     private fun isInstalled(context: Context, pkg: String): Boolean = try {
         context.packageManager.getPackageInfo(pkg, 0)
         true
+    } catch (_: Exception) {
+        false
+    }
+
+    private fun availablePackages(context: Context): List<String> =
+        WA_PACKAGES.filter { isInstalled(context, it) }
+
+    private fun resolvesWhatsAppAction(context: Context): Boolean = try {
+        context.packageManager.queryIntentActivities(Intent(WA_ACTION), 0).isNotEmpty()
     } catch (_: Exception) {
         false
     }

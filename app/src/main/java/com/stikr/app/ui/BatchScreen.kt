@@ -64,10 +64,12 @@ fun BatchScreen(
     onEditSticker: (String, String) -> Unit = { _, _ -> },
     onShareSticker: (String, String) -> Unit = { _, _ -> },
     onDeleteSticker: (String, String) -> Unit = { _, _ -> },
+    onExport: (String) -> Unit = {},
+    exportingPackId: String? = null,
 ) {
     when (state.phase) {
         BatchPhase.PROCESSING -> ProcessingScreen(state = state, onCancel = onCancel)
-        BatchPhase.DONE -> DoneScreen(state, onDone, onOpenPack, onEditSticker, onShareSticker, onDeleteSticker)
+        BatchPhase.DONE -> DoneScreen(state, onDone, onOpenPack, onEditSticker, onShareSticker, onDeleteSticker, onExport, exportingPackId)
     }
 }
 
@@ -189,19 +191,27 @@ private fun DoneScreen(
     onEditSticker: (String, String) -> Unit,
     onShareSticker: (String, String) -> Unit,
     onDeleteSticker: (String, String) -> Unit,
+    onExport: (String) -> Unit,
+    exportingPackId: String?,
 ) {
     val palette = Neo.palette
+    val pager = rememberPagerState(pageCount = { state.created.size })
+    val currentPack = state.created.getOrNull(pager.currentPage)
 
     BackHandler { onDone() }
 
     Scaffold(
         containerColor = palette.paper,
         bottomBar = {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = NeoDimens.gutter, vertical = 14.dp),
             ) {
+                currentPack?.let { pack ->
+                    WhatsAppPackAction(pack.stickerCount, exportingPackId != null) { onExport(pack.id) }
+                    Spacer(Modifier.height(12.dp))
+                }
                 NeoButton(
                     text = "Done",
                     onClick = onDone,
@@ -238,7 +248,6 @@ private fun DoneScreen(
                     color = palette.muted,
                 )
                 Spacer(Modifier.height(22.dp))
-                val pager = rememberPagerState(pageCount = { state.created.size })
                 if (state.created.size > 1) {
                     Text(
                         text = "Pack ${pager.currentPage + 1} of ${state.created.size} · Swipe to browse",

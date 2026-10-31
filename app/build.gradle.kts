@@ -12,8 +12,8 @@ android {
         applicationId = "com.stikr.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.3"
+        versionCode = 3
+        versionName = "0.4"
     }
 
     // Repo keystore (PKCS12): every release APK gets the same signature, so

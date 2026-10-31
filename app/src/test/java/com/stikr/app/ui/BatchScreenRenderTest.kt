@@ -1,9 +1,13 @@
 package com.stikr.app.ui
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithText
@@ -320,6 +324,45 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
         }
         settle()
         compose.onNodeWithText("Cutting out the subject…").assertIsDisplayed()
+    }
+
+    @Test
+    fun bottomExportFollowsViewedPack() {
+        val packs = listOf(packFixture("first", "First", 3), packFixture("second", "Second", 3))
+        var exported = ""
+        compose.setContent {
+            StikrTheme(darkTheme = false) {
+                BatchScreen(doneState(created = packs), {}, {}, {}, onExport = { exported = it })
+            }
+        }
+        settle()
+        compose.onNodeWithContentDescription("First thumbnail").assertIsDisplayed()
+        compose.onNodeWithText("Add to WhatsApp", ignoreCase = true).assertIsDisplayed().performClick()
+        assertEquals("first", exported)
+        compose.onNodeWithTag("batch-pager").performTouchInput { swipeLeft() }
+        settle()
+        compose.onNodeWithContentDescription("Second thumbnail").assertIsDisplayed()
+        compose.onNodeWithText("Add to WhatsApp", ignoreCase = true).performClick()
+        assertEquals("second", exported)
+        capture("batch-export-second-pack")
+    }
+
+    @Test
+    fun batchExportExplainsMinimumAndShowsBusyState() {
+        var busy by androidx.compose.runtime.mutableStateOf(false)
+        val pack = packFixture(count = 2)
+        compose.setContent {
+            StikrTheme(darkTheme = false) {
+                BatchScreen(doneState(created = listOf(pack)), {}, {}, {},
+                    exportingPackId = if (busy) "pack-1" else null)
+            }
+        }
+        settle()
+        compose.onNodeWithText("Add to WhatsApp", ignoreCase = true).assertIsNotEnabled()
+        compose.onNodeWithText("1 more sticker — WhatsApp takes packs of 3 or more").assertIsDisplayed()
+        compose.runOnIdle { busy = true }
+        compose.onNodeWithContentDescription("Preparing pack for WhatsApp").assertIsDisplayed()
+        compose.onNodeWithText("Add to WhatsApp", ignoreCase = true).assertDoesNotExist()
     }
 
     private fun runningState() = BatchState(

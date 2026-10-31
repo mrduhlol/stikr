@@ -113,6 +113,18 @@ fun StikrApp(
         }
     }
 
+    fun exportPack(id: String) {
+        viewModel.exportToWhatsApp(id) { intent ->
+            try {
+                whatsappLauncher.launch(intent)
+            } catch (_: ActivityNotFoundException) {
+                viewModel.notify("WhatsApp isn't available on this device")
+            } catch (_: SecurityException) {
+                viewModel.notify("Couldn't open WhatsApp. Please update WhatsApp and try again")
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(Neo.palette.paper)) {
         val currentBatch = batch
         when {
@@ -134,6 +146,8 @@ fun StikrApp(
                 },
                 onShareSticker = viewModel::shareSticker,
                 onDeleteSticker = viewModel::deleteSticker,
+                onExport = ::exportPack,
+                exportingPackId = exportingPackId,
                 onCancel = viewModel::cancelBatch,
                 onDone = viewModel::dismissBatch,
                 onOpenPack = { id ->
@@ -187,17 +201,7 @@ fun StikrApp(
                                 importState = importing?.takeIf { it.packId == pack.id },
                                 onDeleteSticker = { viewModel.deleteSticker(pack.id, it) },
                                 onShareSticker = { viewModel.shareSticker(pack.id, it) },
-                                onExport = {
-                                    viewModel.exportToWhatsApp(pack.id) { intent ->
-                                        try {
-                                            whatsappLauncher.launch(intent)
-                                        } catch (_: ActivityNotFoundException) {
-                                            viewModel.notify("WhatsApp isn't available on this device")
-                                        } catch (_: SecurityException) {
-                                            viewModel.notify("Couldn't open WhatsApp. Please update WhatsApp and try again")
-                                        }
-                                    }
-                                },
+                                onExport = { exportPack(pack.id) },
                                 exporting = exportingPackId == pack.id,
                             )
                         }

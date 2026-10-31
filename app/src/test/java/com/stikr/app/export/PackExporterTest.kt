@@ -2,6 +2,8 @@ package com.stikr.app.export
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.pm.ResolveInfo
 import android.content.pm.PackageInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -31,6 +33,7 @@ class PackExporterTest {
     fun importIntentKeepsTheActivityResultHandshakeAndPackIdentity() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         shadowOf(context.packageManager).installPackage(PackageInfo().apply { packageName = "com.whatsapp" })
+        assertTrue(PackExporter.isWhatsAppInstalled(context))
         val pack = PackRepository(File(context.cacheDir, "intent-packs")).createPack("Friends")
         val intent = requireNotNull(PackExporter.createWhatsAppIntent(context, pack))
         assertEquals("com.whatsapp.intent.action.ENABLE_STICKER_PACK", intent.action)
@@ -46,8 +49,30 @@ class PackExporterTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val pack = PackRepository(File(context.cacheDir, "intent-packs")).createPack("Friends")
         assertNull(PackExporter.createWhatsAppIntent(context, pack))
+        assertTrue(!PackExporter.isWhatsAppInstalled(context))
         shadowOf(context.packageManager).installPackage(PackageInfo().apply { packageName = "com.whatsapp.w4b" })
+        assertTrue(PackExporter.isWhatsAppInstalled(context))
         assertEquals("com.whatsapp.w4b", PackExporter.createWhatsAppIntent(context, pack)?.`package`)
+    }
+
+    @Test
+    fun actionHandlerWorksWhenPackageMetadataIsUnavailable() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val action = "com.whatsapp.intent.action.ENABLE_STICKER_PACK"
+        shadowOf(context.packageManager).addResolveInfoForIntent(Intent(action), ResolveInfo().apply {
+            activityInfo = ActivityInfo().apply {
+                packageName = "com.whatsapp"
+                name = "com.whatsapp.StickerImportActivity"
+                exported = true
+            }
+        })
+        val pack = PackRepository(File(context.cacheDir, "handler-packs")).createPack("Friends")
+        assertTrue(PackExporter.isWhatsAppInstalled(context))
+        val intent = requireNotNull(PackExporter.createWhatsAppIntent(context, pack))
+        assertEquals(action, intent.action)
+        assertNull(intent.`package`)
+        assertEquals(pack.id, intent.getStringExtra("sticker_pack_id"))
+        assertEquals(0, intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
     @Test

@@ -10,21 +10,21 @@ No account, no upload, no watermark.
 ![On device](docs/site/assets/badge-local.svg)
 ![No account](docs/site/assets/badge-free.svg)
 
-[![Download normal APK](https://img.shields.io/badge/Download-Normal_APK-723AF4?style=for-the-badge&logo=android&logoColor=white)](https://github.com/mrduhlol/stikr/releases/latest/download/stikr.apk)
-[![Download debug APK](https://img.shields.io/badge/Download-Debug_APK-555555?style=for-the-badge&logo=android&logoColor=white)](https://github.com/mrduhlol/stikr/actions/workflows/build-apk.yml)
+[![Download stikr APK](https://img.shields.io/badge/Download-stikr.apk-723AF4?style=for-the-badge&logo=android&logoColor=white)](https://github.com/mrduhlol/stikr/releases/download/app/stikr.apk)
 · **[READ THE DOCS ↗](https://mrduhlol.github.io/stikr/)**
-· [Releases](https://github.com/mrduhlol/stikr/releases)
 
-Free, for Android 8.0 and newer.
+Free, for Android 8.0 and newer. **One app, one download: `stikr.apk`.**
 
-| Download | What it does | Who should use it |
-| :--- | :--- | :--- |
-| **Normal APK (release)** | The everyday app: create and edit sticker packs, remove backgrounds, share stickers, and add packs to WhatsApp. Uses the persistent release signing key and excludes Compose preview tooling. | **Recommended for everyday use.** The button downloads `stikr.apk` directly. |
-| **Debug APK** | The same sticker features, with Android debugging enabled and Compose tooling included for development and troubleshooting. Usually larger; it does not unlock extra sticker features. | Developers and testers. The button opens GitHub Actions: choose a successful **Build APK** run, download the **stikr** artifact, and unzip it to get the APK. GitHub sign-in is required to download artifacts. |
+This is the normal app for everyday use: create and edit sticker packs, remove
+backgrounds, share stickers, and add packs to WhatsApp. The same download is
+updated whenever changes on `main` pass the tests and build successfully. Install
+it over your existing normal APK to keep your packs; no version selection needed.
 
-Normal and debug APKs use different signing keys, so Android cannot install one
-over the other. Switching requires uninstalling the existing app, which removes
-its local packs. Debug builds from different CI runs may also have different keys.
+Debug APKs are for local development and troubleshooting and are not distributed
+here. They have the same sticker features, with debugging enabled and extra
+tooling. If you previously installed a debug build, Android may require you to
+uninstall it before installing the normal app because the signing keys differ.
+Uninstalling deletes local packs.
 
 ---
 
@@ -49,7 +49,7 @@ stikr does not ask for storage permission.
 
 ## **Install**
 
-1. Tap **[DOWNLOAD APK](https://github.com/mrduhlol/stikr/releases/latest/download/stikr.apk)** on your phone.
+1. Tap **[DOWNLOAD APK](https://github.com/mrduhlol/stikr/releases/download/app/stikr.apk)** on your phone.
 2. Open the downloaded file.
 3. Allow **Install unknown apps** when Android asks.
 4. Tap **Install**.
@@ -190,15 +190,13 @@ profile for launch and the home screen (`app/src/main/baseline-prof.txt`),
 which `androidx.profileinstaller` installs on sideloaded phones. Compose
 preview tooling ships in debug builds only.
 
-### Release
+### App download
 
-Bump `versionName` and push a `v*` tag. The
-[`build-apk.yml`](.github/workflows/build-apk.yml) workflow builds and signs
-with `keystore/release.p12`, then attaches `stikr.v<version>.apk` and the stable
-`stikr.apk` to the GitHub Release.
-
-Pushes to `main` build a debug APK for smoke testing. Each CI runner uses a
-throwaway debug key, so debug builds cannot update one another. Install tagged releases.
+Push to `main`. The [`build-apk.yml`](.github/workflows/build-apk.yml) workflow
+runs the tests, builds with the persistent `keystore/release.p12` signing key,
+and replaces `stikr.apk` on the single **stikr** download page. No version tag
+or separate release is needed. Android's internal `versionCode` must increase
+for newer builds; keep the signing key unchanged so updates preserve local packs.
 
 [Development guide](https://mrduhlol.github.io/stikr/develop.html)
 
