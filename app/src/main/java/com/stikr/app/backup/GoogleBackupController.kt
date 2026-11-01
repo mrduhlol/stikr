@@ -50,7 +50,7 @@ class GoogleBackupController(context: Context, private val repository: PackRepos
         val email = withContext(Dispatchers.IO) { userEmail(access) }
         // A newly selected account must not inherit the old account's backup timestamp.
         val last = state.value.lastBackupAt.takeIf { state.value.accountLabel == email }
-        prefs.edit().putString("label", email).apply()
+        prefs.edit().putString("label", email).putLong("last", last ?: 0L).apply()
         mutable.value = state.value.copy(accountLabel = email, lastBackupAt = last,
             automaticBackup = false, restoreAvailable = null)
         val exists = temporary { DriveBackupStore().download(access, it) }
@@ -95,6 +95,7 @@ class GoogleBackupController(context: Context, private val repository: PackRepos
     }
 
     fun setAutomaticBackup(enabled: Boolean) {
+        if (closed || disconnecting) return
         val allowed = enabled && state.value.accountLabel != null && state.value.restoreAvailable == false
         mutable.value = state.value.copy(automaticBackup = allowed,
             status = if (enabled && !allowed) "Connect and restore the existing backup, or explicitly back up this library first." else state.value.status)
@@ -205,6 +206,7 @@ class GoogleBackupController(context: Context, private val repository: PackRepos
             currentCoroutineContext().ensureActive()
             DriveBackupStore().upload(access, file)
         }
+        currentCoroutineContext().ensureActive()
         prefs.edit().putLong("last", timestamp).apply()
         mutable.value = state.value.copy(lastBackupAt = timestamp, restoreAvailable = false, status = "Backup saved to Google Drive.")
     }
