@@ -109,8 +109,8 @@ and text color. The same menu edits the title and author.
 Sticker outlines default to **3 px**. **Bleeding bend** rounds photo corners
 before drawing the outline and defaults off. Caption controls include font,
 size up to 170, bold, background, and color. Cover text reaches 400, with Sans, Serif, Mono, Anton, Caveat, Pacifico and Oswald available offline. A full slide requests WhatsApp import; a
-front/back 360° card celebration plays only after WhatsApp confirms success.
-Reduced-motion settings suppress the spin and particles. Short click, slide,
+compact card rises and unfolds with a success check only after WhatsApp confirms success.
+Reduced-motion settings show the final success state immediately. Short click, slide,
 and success sounds follow the top-right mute toggle and the phone’s silent mode.
 
 The approved [interactive design reference](docs/mockups/dark-onboarding-preview.html)
