@@ -1,6 +1,7 @@
 package com.stikr.app.backup
 
 import android.accounts.Account
+import com.stikr.app.data.backup.DriveBackupStore
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -53,7 +54,7 @@ class GoogleBackupController(context: Context, private val repository: PackRepos
         prefs.edit().putString("label", email).putLong("last", last ?: 0L).apply()
         mutable.value = state.value.copy(accountLabel = email, lastBackupAt = last,
             automaticBackup = false, restoreAvailable = null)
-        val exists = temporary { DriveBackupStore().download(access, it) }
+        val exists = temporary { withContext(Dispatchers.IO) { DriveBackupStore().download(access, it) } }
         mutable.value = state.value.copy(restoreAvailable = exists,
             status = if (exists) "Backup found. Restore it or explicitly back up this library." else "Connected. No backup found.")
     }
@@ -83,7 +84,7 @@ class GoogleBackupController(context: Context, private val repository: PackRepos
         if (state.value.accountLabel == null) return
         start(onResolution) { access ->
             val restored = temporary { file ->
-                if (!DriveBackupStore().download(access, file)) false else {
+                if (!withContext(Dispatchers.IO) { DriveBackupStore().download(access, file) }) false else {
                     withContext(Dispatchers.IO) { repository.importBackup(file) }
                     true
                 }
@@ -204,7 +205,7 @@ class GoogleBackupController(context: Context, private val repository: PackRepos
         val timestamp = temporary { file ->
             withContext(Dispatchers.IO) { repository.exportBackup(file) }
             currentCoroutineContext().ensureActive()
-            DriveBackupStore().upload(access, file)
+            withContext(Dispatchers.IO) { DriveBackupStore().upload(access, file) }
         }
         currentCoroutineContext().ensureActive()
         prefs.edit().putLong("last", timestamp).apply()
