@@ -15,7 +15,7 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [34])
 class ThumbnailRendererTest {
     @Test fun extremeDragsAndZoomNeverExposeOutsidePhoto() {
-        for ((width, height) in listOf(4000 to 600, 600 to 4000, 1080 to 1350)) {
+        for ((width, height) in listOf(4000 to 600, 600 to 4000, 1080 to 1440)) {
             for (zoom in listOf(-10f, 1f, 2f, 100f, Float.NaN)) {
                 val safe = ThumbnailRenderer.clamp(width, height, ThumbnailCrop(zoom, 100f, -100f))
                 assertTrue(safe.zoom in 1f..4f)
@@ -23,25 +23,25 @@ class ThumbnailRendererTest {
                 assertTrue(rect.left <= 0.01f)
                 assertTrue(rect.top <= 0.01f)
                 assertTrue(rect.right >= 1079.99f)
-                assertTrue(rect.bottom >= 1349.99f)
+                assertTrue(rect.bottom >= 1439.99f)
             }
         }
     }
 
     @Test fun cropExportsPortraitPngAndAppliesDrag() {
-        val source = Bitmap.createBitmap(2160, 1350, Bitmap.Config.ARGB_8888)
+        val source = Bitmap.createBitmap(2160, 1440, Bitmap.Config.ARGB_8888)
         source.eraseColor(Color.RED)
-        android.graphics.Canvas(source).drawRect(1080f, 0f, 2160f, 1350f, android.graphics.Paint().apply { color = Color.BLUE })
+        android.graphics.Canvas(source).drawRect(1080f, 0f, 2160f, 1440f, android.graphics.Paint().apply { color = Color.BLUE })
         val left = ThumbnailRenderer.photo(source, ThumbnailCrop(x = 100f))
         val right = ThumbnailRenderer.photo(source, ThumbnailCrop(x = -100f))
         assertEquals(1080, left.width)
-        assertEquals(1350, left.height)
+        assertEquals(1440, left.height)
         assertEquals(Color.RED, left.getPixel(540, 675))
         assertEquals(Color.BLUE, right.getPixel(540, 675))
         val bytes = ThumbnailRenderer.png(left)
         val decoded = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
         assertEquals(1080, decoded.width)
-        assertEquals(1350, decoded.height)
+        assertEquals(1440, decoded.height)
         listOf(source, left, right, decoded).forEach { it.recycle() }
     }
 
@@ -66,7 +66,7 @@ class ThumbnailRendererTest {
         val normal = ThumbnailRenderer.text(style)
         assertEquals(Color.MAGENTA, normal.getPixel(0, 0))
         assertEquals(1080, normal.width)
-        assertEquals(1350, normal.height)
+        assertEquals(1440, normal.height)
         for (variant in listOf(style.copy(font = "serif"), style.copy(size = 60), style.copy(bold = true, italic = true), style.copy(color = Color.BLUE))) {
             val changed = ThumbnailRenderer.text(variant)
             assertFalse("style must affect actual pixels: $variant", normal.sameAs(changed))
