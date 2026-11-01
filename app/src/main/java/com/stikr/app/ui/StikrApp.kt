@@ -55,6 +55,7 @@ fun StikrApp(
     var pendingExportId by rememberSaveable { mutableStateOf<String?>(null) }
     var celebration by remember { mutableStateOf<StickerPack?>(null) }
     var thumbnailSaving by remember { mutableStateOf(false) }
+    var bulkEditing by rememberSaveable { mutableStateOf(false) }
     var singleEditing by rememberSaveable { mutableStateOf(false) }
     var showLocalBackup by rememberSaveable { mutableStateOf(false) }
     var restoreUri by rememberSaveable { mutableStateOf<String?>(null) }
@@ -208,7 +209,7 @@ fun StikrApp(
                         onBackup = { showLocalBackup = true },
                         onOpenPack = ::openPack,
                         onCreatePack = { name -> viewModel.createPack(name) { openPack(it.id) } },
-                        onMakeSticker = ::makeSticker,
+                        onMakeSticker = { bulkEditing = false; makeSticker() },
                         onExportSingles = ::exportPack,
                         onDeleteSingle = viewModel::deleteSticker,
                         onStartBatch = { title, author, uris, removeBackground ->
@@ -229,10 +230,19 @@ fun StikrApp(
                                 onRename = { viewModel.renamePack(pack.id, it) },
                                 onRenameAuthor = { viewModel.renamePackAuthor(pack.id, it) },
                                 onThumbnail = { screen = Screen.THUMBNAIL.name },
+                                onEditPack = {
+                                    pack.stickers.firstOrNull()?.let { file ->
+                                        bulkEditing = true
+                                        singleEditing = false
+                                        viewModel.editSticker(pack.id, file)
+                                        screen = Screen.EDITOR.name
+                                    }
+                                },
                                 onDelete = { viewModel.deletePack(pack.id) { screen = Screen.HOME.name } },
-                                onAddSticker = { openEditor(pack.id) },
+                                onAddSticker = { bulkEditing = false; openEditor(pack.id) },
                                 onImportPhotos = { viewModel.importPhotos(pack.id, it) },
                                 onEditSticker = { fileName ->
+                                    bulkEditing = false
                                     viewModel.editSticker(pack.id, fileName)
                                     screen = Screen.EDITOR.name
                                 },
@@ -287,7 +297,18 @@ fun StikrApp(
                                 onPick = viewModel::loadImage,
                                 onCutout = viewModel::setCutout,
                                 onStyle = viewModel::setStyle,
-                                onSave = { viewModel.saveSticker { leaveEditor() } },
+                                bulkEdit = bulkEditing,
+                                onSave = {
+                                    if (bulkEditing) viewModel.applyPackStyle { bulkEditing = false; leaveEditor() }
+                                    else viewModel.saveSticker { leaveEditor() }
+                                },
+                                onSaveAndExport = if (singleEditing && !bulkEditing) ({
+                                    val savedPackId = state.packId
+                                    viewModel.saveSticker {
+                                        leaveEditor()
+                                        exportPack(savedPackId)
+                                    }
+                                }) else null,
                                 onSaveNew = {
                                     savingToNewPack = true
                                     viewModel.saveStickerToNewPack { newPack ->
