@@ -38,6 +38,25 @@ class CollectionInteractionTest : ScreenRenderHarness() {
         assertEquals(1,confirmed)
     }
 
+    @Test fun liquidFillCanBeCapturedDuringDragAndClearsOnCancel() {
+        var confirmed = 0
+        compose.setContent { StikrTheme { SlideExport(onConfirm = { confirmed++ }) } }
+        val slide = compose.onNodeWithContentDescription("Slide to add to WhatsApp")
+        slide.performTouchInput {
+            down(Offset(12f, centerY))
+            moveTo(Offset(width * .58f, centerY), delayMillis = 180)
+        }
+        settle()
+        capture("slider-liquid-mid-drag")
+        assertEquals(0, confirmed)
+        slide.performTouchInput { cancel() }
+        settle()
+        capture("slider-liquid-cancelled")
+        assertEquals(0, confirmed)
+        slide.performTouchInput { swipe(Offset(12f, centerY), Offset(width * .45f, centerY)) }
+        assertEquals(0, confirmed)
+    }
+
     @Test fun accessibilityConfirmationAndBusyStateAreExplicit() {
         var confirmed=0
         val busy=androidx.compose.runtime.mutableStateOf(false)
