@@ -24,7 +24,7 @@ fun SettingsScreen(mode: AppearanceMode, onSelect: (AppearanceMode) -> Unit, onB
     val palette = Neo.palette
     BackHandler(onBack = onBack)
     Column(
-        Modifier.fillMaxSize().background(palette.paper).systemBarsPadding()
+        Modifier.fillMaxSize().collectionBackground().systemBarsPadding()
             .verticalScroll(rememberScrollState()).padding(24.dp),
     ) {
         NeoTextButton(text = "Back", onClick = onBack)
