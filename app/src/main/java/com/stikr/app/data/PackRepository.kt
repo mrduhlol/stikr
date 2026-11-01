@@ -239,7 +239,8 @@ class PackRepository(private val root: File) {
                     val metaFile = File(stagedDir, PACK_FILE)
                     val json = JSONObject(metaFile.readText())
                     var displayId = json.optString("displayId")
-                    if (displayId.isBlank() || displayId in reservedDisplayIds) {
+                    val previousDisplayId = readPack(File(root, pack.id))?.displayId
+                    if (displayId.isBlank() || (displayId in reservedDisplayIds && displayId != previousDisplayId)) {
                         displayId = Random.nextInt(10_000_000, 100_000_000).toString()
                         while (displayId in reservedDisplayIds) displayId = Random.nextInt(10_000_000, 100_000_000).toString()
                         json.put("displayId", displayId)
