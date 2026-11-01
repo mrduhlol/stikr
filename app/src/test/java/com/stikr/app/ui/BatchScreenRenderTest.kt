@@ -19,6 +19,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performTextInput
 import com.stikr.app.data.PackRepository
 import com.stikr.app.data.StickerPack
 import com.stikr.app.ui.theme.StikrTheme
