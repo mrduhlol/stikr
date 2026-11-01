@@ -48,7 +48,7 @@ fun TourOverlay(onDone: () -> Unit) {
             Text("0${page + 1} / 03", style = MaterialTheme.typography.labelMedium, color = p.muted)
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-            TourArtwork(page, Modifier.fillMaxWidth().height(350.dp).padding(vertical = 12.dp))
+            TourArtwork(page, Modifier.fillMaxWidth().height(390.dp).padding(vertical = 12.dp))
             Text(titles[page], style = MaterialTheme.typography.headlineLarge, color = p.ink, modifier = Modifier.semantics { heading() })
             Text(bodies[page], style = MaterialTheme.typography.bodyMedium, color = p.muted, modifier = Modifier.padding(top = 16.dp, bottom = 24.dp))
         }
@@ -78,7 +78,7 @@ private fun TourArtwork(page: Int, modifier: Modifier) {
     Box(modifier, contentAlignment = Alignment.Center) {
         when(page) {
             0 -> PackCollectionCard(
-                com.stikr.app.data.StickerPack("tour", "Little reactions", "Abhishek", 1793491200000,
+                com.stikr.app.data.StickerPack("tour", "Reactions", "Abhishek", 1793491200000,
                     (1..10).map { "$it.webp" }, serialNumber=1, displayId="86483904"),
                 Modifier.width(166.dp).rotate(-6f), coverResource=R.drawable.tour_preview_cover,
             )
