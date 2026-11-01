@@ -32,17 +32,23 @@ internal object BackupArchive {
                     val meta = File(dir, "pack.json")
                     if (!meta.isFile || meta.length() > 1024 * 1024) return@forEach
                     val json = JSONObject(meta.readText(Charsets.UTF_8))
+                    require(json.optString("id") == dir.name) { "Pack identity mismatch during backup" }
                     val names = linkedSetOf("pack.json")
                     json.optJSONArray("stickers")?.let { a ->
                         for (i in 0 until a.length()) {
                             val sticker = a.getString(i)
+                            require(validAssetName(sticker) && sticker.endsWith(".webp")) { "Invalid sticker path during backup" }
                             names += sticker
                             names += "$sticker.source.png"
                             names += "$sticker.edit.json"
                         }
                     }
-                    listOf("trayImage", "thumbnailImage").forEach { field -> json.optString(field).takeIf { it.isNotEmpty() }?.let(names::add) }
-                    val files = names.mapNotNull { name -> File(dir, name).takeIf { it.isFile } }.sortedBy { it.name }
+                    listOf("trayImage", "thumbnailImage").forEach { field -> json.optString(field).takeIf { it.isNotEmpty() }?.let {
+                        require(validAssetName(it)) { "Invalid pack image path during backup" }
+                        names += it
+                    } }
+                    val files = names.map { name -> File(dir, name).takeIf { it.isFile } ?: error("Pack asset missing during backup: $name") }
+                        .sortedBy { it.name }
                     files.forEach { file ->
                         zip.putNextEntry(ZipEntry("packs/${dir.name}/${file.name}"))
                         FileInputStream(file).use { input -> input.copyTo(zip, BUFFER_SIZE) }
