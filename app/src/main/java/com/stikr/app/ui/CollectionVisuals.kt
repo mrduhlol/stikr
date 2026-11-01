@@ -58,7 +58,7 @@ fun Modifier.collectionBackground(): Modifier = background(
 private fun coverFile(pack: StickerPack, root: File): File? =
     (pack.thumbnailImage ?: pack.stickers.firstOrNull())?.let { if (File(it).isAbsolute) File(it) else root.resolve(pack.id).resolve(it) }
 
-/** Shared by home, pack details and the confirmed-success turntable. */
+/** Shared by home, pack details and the confirmed-success celebration. */
 @Composable
 fun PackCollectionCard(pack: StickerPack, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
     val root = File(LocalContext.current.filesDir, "packs")
