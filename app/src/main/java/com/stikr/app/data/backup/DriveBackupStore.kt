@@ -27,6 +27,7 @@ class DriveBackupStore {
         val url = if (existing == null) "$UPLOAD_ENDPOINT?uploadType=multipart" else "$UPLOAD_ENDPOINT/${encode(existing)}?uploadType=multipart"
         val connection = open(url, accessToken, if (existing == null) "POST" else "PATCH").apply {
             doOutput = true
+            setChunkedStreamingMode(BUFFER_SIZE)
             setRequestProperty("Content-Type", "multipart/related; boundary=$boundary")
         }
         try {
@@ -48,8 +49,9 @@ class DriveBackupStore {
     suspend fun download(accessToken: String, destination: File): Boolean {
         require(accessToken.isNotBlank()) { "Drive access token is required" }
         val id = findBackup(accessToken) ?: return false
-        destination.parentFile?.mkdirs()
-        val temp = File.createTempFile(".stikr-drive-", ".download", destination.parentFile)
+        val parent = destination.parentFile ?: File(".")
+        parent.mkdirs()
+        val temp = File.createTempFile(".stikr-drive-", ".download", parent)
         val connection = open("$API_ENDPOINT/${encode(id)}?alt=media", accessToken, "GET")
         try {
             checked(connection)
