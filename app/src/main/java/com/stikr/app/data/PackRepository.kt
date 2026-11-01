@@ -52,7 +52,7 @@ class PackRepository(private val root: File) {
         val serial = (listPacks().maxOfOrNull { it.serialNumber } ?: 0) + 1
         val pack = StickerPack(
             id = newPackId(),
-            name = name.trim().ifEmpty { "Untitled pack" },
+            name = name.trim().ifEmpty { PackNames.random() },
             author = author,
             createdAt = System.currentTimeMillis(),
             stickers = emptyList(),
