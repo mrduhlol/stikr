@@ -442,7 +442,7 @@ private fun AddTile(onClick: () -> Unit) {
 @Composable
 private fun EmptyArt() {
     val palette = Neo.palette
-    val fills = listOf(palette.cyan, palette.butter, palette.pink)
+    val fills = listOf(palette.card, palette.cherry, palette.creamDim)
     val tilts = listOf(-8f, 3f, 10f)
     Row(horizontalArrangement = Arrangement.spacedBy((-10).dp)) {
         fills.forEachIndexed { index, fill ->
@@ -453,14 +453,14 @@ private fun EmptyArt() {
                     .rotate(tilts[index])
                     .neoFrame(
                         fill = fill,
-                        borderColor = palette.onAccent,
+                        borderColor = palette.edgeFor(fill),
                         shadowColor = palette.shadow,
                         shape = NeoShapes.tile,
                         shadowOffset = NeoDimens.shadowSmall,
                     ),
                 contentAlignment = Alignment.Center,
             ) {
-                if (index == 1) Text("+", fontSize = 34.sp, color = palette.onAccent)
+                if (index == 1) Text("+", fontSize = 34.sp, color = palette.ink)
             }
         }
     }
