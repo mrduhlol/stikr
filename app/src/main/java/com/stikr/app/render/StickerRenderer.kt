@@ -209,7 +209,7 @@ object StickerRenderer {
             textAlign = Paint.Align.CENTER
             typeface = StickerTypography.typeface(style.captionFont, style.captionBold)
         }
-        var textSize = style.captionSize.coerceIn(16, 120).toFloat()
+        var textSize = style.captionSize.coerceIn(16, 170).toFloat()
         while (textSize > 16f) {
             paint.textSize = textSize
             if (paint.measureText(text.toString()) <= maxWidth) break
