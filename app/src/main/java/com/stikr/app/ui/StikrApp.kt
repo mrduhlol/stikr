@@ -59,10 +59,16 @@ fun StikrApp(
     var showLocalBackup by rememberSaveable { mutableStateOf(false) }
     var restoreUri by rememberSaveable { mutableStateOf<String?>(null) }
     val backupBusy by viewModel.localBackupBusy.collectAsStateWithLifecycle()
-    val saveBackup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+    val saveBackup = rememberLauncherForActivityResult(object : ActivityResultContracts.CreateDocument("application/zip") {
+        override fun createIntent(context: android.content.Context, input: String): android.content.Intent =
+            super.createIntent(context, input).putExtra(android.content.Intent.EXTRA_LOCAL_ONLY, true)
+    }) { uri ->
         uri?.let { viewModel.exportLocalBackup(it) }
     }
-    val openBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+    val openBackup = rememberLauncherForActivityResult(object : ActivityResultContracts.OpenDocument() {
+        override fun createIntent(context: android.content.Context, input: Array<String>): android.content.Intent =
+            super.createIntent(context, input).putExtra(android.content.Intent.EXTRA_LOCAL_ONLY, true)
+    }) { uri ->
         restoreUri = uri?.toString()
     }
     val packs by viewModel.packs.collectAsStateWithLifecycle()
