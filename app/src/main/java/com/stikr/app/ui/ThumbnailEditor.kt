@@ -38,7 +38,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-/** Self-contained route. Save returns an encoded, portrait 1080 × 1350 PNG. */
+/** Self-contained route. Save returns an encoded, portrait 1080 × 1440 PNG. */
 @Composable
 fun ThumbnailEditor(onSave: (ByteArray) -> Unit, onBack: () -> Unit, initialFile: File? = null, saving: Boolean = false) {
     val context = LocalContext.current
@@ -106,7 +106,7 @@ fun ThumbnailEditor(onSave: (ByteArray) -> Unit, onBack: () -> Unit, initialFile
             } else {
                 Text(if (mode == 0) "Frame your thumbnail" else "Make it yours", color = palette.ink, style = MaterialTheme.typography.titleLarge)
                 if (mode == 0) Text("Drag to position. Pinch or use Zoom to crop.", color = palette.muted, style = MaterialTheme.typography.bodySmall)
-                Box(Modifier.align(Alignment.CenterHorizontally).then(if (mode == 1) Modifier.widthIn(max = 232.dp) else Modifier).fillMaxWidth().aspectRatio(4f / 5f).background(palette.card), contentAlignment = Alignment.Center) {
+                Box(Modifier.align(Alignment.CenterHorizontally).then(if (mode == 1) Modifier.widthIn(max = 232.dp) else Modifier).fillMaxWidth().aspectRatio(3f / 4f).background(palette.card), contentAlignment = Alignment.Center) {
                     val photo = source
                     if (mode == 0 && photo == null) {
                         Text(if (busy) "Opening photo…" else "Choose a photo below", color = palette.muted)
@@ -129,7 +129,7 @@ fun ThumbnailEditor(onSave: (ByteArray) -> Unit, onBack: () -> Unit, initialFile
                         }
                     }
                 }
-                Text("4:5 portrait · 1080 × 1350 px", color = palette.muted, style = MaterialTheme.typography.labelMedium)
+                Text("3:4 portrait · 1080 × 1440 px", color = palette.muted, style = MaterialTheme.typography.labelMedium)
                 if (mode == 0) {
                     NeoSlider(crop.zoom, { zoom -> source?.let { crop = ThumbnailRenderer.clamp(it.width, it.height, crop.copy(zoom = zoom)) } }, 1f..4f, "Thumbnail zoom", enabled = source != null && !busy)
                     NeoOutlinedButton(text = if (source == null) "Choose photo" else "Change photo", onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, enabled = !busy)
