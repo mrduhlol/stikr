@@ -767,7 +767,8 @@ fun NeoDialog(
                         shape = RoundedCornerShape(22.dp),
                         shadowOffset = NeoDimens.shadowLarge,
                         clipContent = true,
-                    ),
+                    )
+                    .background(Brush.linearGradient(listOf(Color(0xFF20251F), Color(0xFF171B17), Color(0xFF1B2018)))),
             ) {
                 if (!kicker.isNullOrBlank()) {
                     Box(
@@ -779,7 +780,7 @@ fun NeoDialog(
                         Text(
                             text = kicker,
                             style = MaterialTheme.typography.labelMedium,
-                            color = palette.contentFor(band),
+                            color = palette.muted,
                         )
                     }
                     Box(
