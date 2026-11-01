@@ -124,6 +124,6 @@ class TourScreenRenderTest : ScreenRenderHarness() {
         compose.waitForIdle()
         assertFalse("Back must not lose the tour", done)
         assertFalse("Back must not leave the tour", compose.activity.isFinishing)
-        compose.onNodeWithText("Turn little moments into stickers.", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Pick the photos that say it best.", substring = true).assertIsDisplayed()
     }
 }
