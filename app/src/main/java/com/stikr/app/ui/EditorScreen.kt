@@ -291,7 +291,7 @@ private fun PreviewCard(state: EditorState, onPickPhoto: () -> Unit) {
                         NeoProgressBar(contentDescription = state.status ?: "Working")
                         Spacer(Modifier.height(10.dp))
                         Text(
-                            text = "On this phone. Nothing is uploaded.",
+                            text = "Photo processing stays on this phone.",
                             style = MaterialTheme.typography.bodySmall,
                             color = palette.muted,
                         )
