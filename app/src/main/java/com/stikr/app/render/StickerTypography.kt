@@ -5,20 +5,29 @@ import android.graphics.Typeface
 import androidx.core.content.res.ResourcesCompat
 import com.stikr.app.R
 
-/** Shared Android typefaces so editor previews and exported bitmaps use identical glyphs. */
+/** Shared fonts keep editing previews and exported bitmaps identical, including offline. */
 object StickerTypography {
-    val fonts = listOf("sans", "serif", "mono", "display")
-    @Volatile private var display: Typeface? = null
+    val fonts = listOf("sans", "serif", "mono", "display", "handwritten", "script", "condensed")
+    private val names = listOf("Sans", "Serif", "Mono", "Anton", "Caveat", "Pacifico", "Oswald")
+    @Volatile private var bundled: Map<String, Typeface> = emptyMap()
+
+    fun label(font: String): String = names.getOrElse(fonts.indexOf(font)) { "Sans" }
 
     fun initialize(context: Context) {
-        if (display == null) display = ResourcesCompat.getFont(context, R.font.anton_regular)
+        if (bundled.isEmpty()) {
+            bundled = mapOf(
+                "display" to R.font.anton_regular,
+                "handwritten" to R.font.caveat_regular,
+                "script" to R.font.pacifico_regular,
+                "condensed" to R.font.oswald_regular,
+            ).mapValues { (_, resource) -> ResourcesCompat.getFont(context, resource) ?: Typeface.SANS_SERIF }
+        }
     }
 
     fun typeface(font: String, bold: Boolean = false, italic: Boolean = false): Typeface {
-        val base = when (font) {
+        val base = bundled[font] ?: when (font) {
             "serif" -> Typeface.SERIF
             "mono" -> Typeface.MONOSPACE
-            "display" -> display ?: Typeface.create("sans-serif-condensed", Typeface.NORMAL)
             else -> Typeface.SANS_SERIF
         }
         val style = (if (bold) Typeface.BOLD else 0) or (if (italic) Typeface.ITALIC else 0)
