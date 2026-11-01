@@ -21,17 +21,23 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontFamily
+import com.stikr.app.render.StickerTypography
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.*
@@ -56,12 +62,17 @@ fun Modifier.collectionBackground(): Modifier = background(
 }
 
 private fun coverFile(pack: StickerPack, root: File): File? =
-    (pack.thumbnailImage ?: pack.stickers.firstOrNull())?.let { if (File(it).isAbsolute) File(it) else root.resolve(pack.id).resolve(it) }
+    (pack.thumbnailImage ?: pack.stickers.firstOrNull())?.let {
+        val file = if (File(it).isAbsolute) File(it) else root.resolve(pack.id).resolve(it)
+        if (pack.thumbnailImage == null) File(file.parentFile, "$it.source.png").takeIf { source -> source.isFile } ?: file else file
+    }
 
 /** Shared by home, pack details and the confirmed-success celebration. */
 @Composable
 fun PackCollectionCard(pack: StickerPack, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
-    val root = File(LocalContext.current.filesDir, "packs")
+    val context = LocalContext.current
+    remember(context) { StickerTypography.initialize(context); true }
+    val root = File(context.filesDir, "packs")
     val file = coverFile(pack, root)
     val bitmap by produceState<android.graphics.Bitmap?>(null, file, pack.contentVersion) {
         value = withContext(Dispatchers.IO) { file?.let { runCatching { BitmapFactory.decodeFile(it.path, BitmapFactory.Options().apply { inSampleSize = 2 }) }.getOrNull() } }
@@ -80,28 +91,39 @@ fun PackCollectionCard(pack: StickerPack, modifier: Modifier = Modifier, onClick
     val date = remember(pack.createdAt) { SimpleDateFormat("MMM yyyy", Locale.ENGLISH).format(Date(pack.createdAt)).uppercase(Locale.ENGLISH) }
     val unique = pack.displayId.ifBlank { pack.id.filter { it.isLetterOrDigit() }.takeLast(5).uppercase(Locale.ENGLISH) }
     Box(modifier.fillMaxWidth().background(tint).then(if (onClick != null) Modifier.clickable(onClickLabel = "Open ${pack.name}", onClick = onClick) else Modifier)) {
+        BoxWithConstraints {
+        val titleSize = if (maxWidth >= 240.dp) 42.sp else 29.sp
         Column(Modifier.padding(8.dp)) {
-            Box(Modifier.fillMaxWidth().aspectRatio(4f/5f).background(tint.copy(alpha=.6f)).semantics { contentDescription = "${pack.name} thumbnail" }) {
+            Box(Modifier.fillMaxWidth().aspectRatio(3f/4f).background(tint.copy(alpha=.6f)).semantics { contentDescription = "${pack.name} thumbnail" }) {
                 bitmap?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
             }
             Row(Modifier.fillMaxWidth().padding(top=10.dp), horizontalArrangement=Arrangement.SpaceBetween) {
                 Text("CHECKPOINT $date · #$unique", fontSize=8.sp, lineHeight=11.sp, color=ink, modifier=Modifier.weight(1f))
                 Text("${pack.stickerCount}/30", fontSize=10.sp, color=ink, modifier=Modifier.padding(start=3.dp))
             }
-            Text(pack.name, fontSize=22.sp, lineHeight=23.sp, letterSpacing=(-.7).sp, fontWeight=FontWeight.SemiBold, color=ink, maxLines=2, overflow=TextOverflow.Ellipsis, modifier=Modifier.heightIn(min=50.dp).padding(top=6.dp))
-            Row(Modifier.fillMaxWidth().padding(top=7.dp,bottom=3.dp), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=Alignment.CenterVertically) {
+            Text(pack.name, fontSize=titleSize, lineHeight=titleSize * 1.06f, letterSpacing=(-.5).sp, fontFamily=FontFamily(StickerTypography.typeface("condensed", true)), color=ink, maxLines=3, overflow=TextOverflow.Ellipsis, modifier=Modifier.padding(top=8.dp))
+            Text("by ${pack.author}", fontSize=11.sp, lineHeight=15.sp, color=ink.copy(alpha=.85f), maxLines=2, overflow=TextOverflow.Ellipsis, modifier=Modifier.padding(top=5.dp))
+            Row(Modifier.fillMaxWidth().padding(top=16.dp,bottom=3.dp), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=Alignment.CenterVertically) {
                 Text("STIKR / ${pack.serialNumber.coerceAtLeast(1).toString().padStart(3,'0')}", fontSize=8.sp, letterSpacing=1.sp, color=ink)
                 Box(Modifier.size(27.dp).border(1.dp,ink), contentAlignment=Alignment.Center) { WhatsAppMark(Modifier.size(18.dp),ink) }
             }
         }
-        Column(Modifier.width(94.dp).background(tint, object: Shape {
+        }
+        Column(Modifier.width(124.dp).background(tint, object: Shape {
             override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline = Outline.Generic(Path().apply { moveTo(0f,0f); lineTo(size.width,0f); lineTo(size.width,size.height*.76f); lineTo(size.width*.88f,size.height); lineTo(0f,size.height); close() })
-        }).padding(start=8.dp,top=10.dp,end=12.dp,bottom=7.dp)) {
-            Canvas(Modifier.width(62.dp).height(6.dp)) {
-                val progress = (pack.stickerCount / 30f).coerceIn(0f,1f)
-                for (x in 0..20) { val px=x*4.dp.toPx(); if(px+3.dp.toPx() <= size.width) drawLine(ink.copy(alpha=if(px < size.width*progress) 1f else .3f),Offset(px,size.height),Offset(px+3.dp.toPx(),0f),2.dp.toPx()) }
+        }).padding(start=10.dp,top=10.dp,end=8.dp,bottom=9.dp)) {
+            Canvas(Modifier.fillMaxWidth().height(6.dp)) {
+                val filled = (pack.stickerCount.coerceIn(0,30) / 30f * 25).roundToInt()
+                val step = size.width / 25f
+                repeat(25) { index ->
+                    val x = index * step
+                    drawPath(Path().apply {
+                        moveTo(x, size.height); lineTo(x + step * .35f, 0f)
+                        lineTo(x + step, 0f); lineTo(x + step * .65f, size.height); close()
+                    }, ink.copy(alpha=if(index<filled) 1f else .25f))
+                }
             }
-            Text("LVL ${pack.serialNumber.coerceAtLeast(1).toString().padStart(3,'0')}",color=ink,fontSize=9.sp,lineHeight=13.sp,fontWeight=FontWeight.Medium)
+            Text("LVL ${pack.serialNumber.coerceAtLeast(1).toString().padStart(3,'0')}",color=ink,fontSize=13.sp,lineHeight=16.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=5.dp))
         }
     }
 }
@@ -121,6 +143,16 @@ fun SlideExport(enabled: Boolean = true, busy: Boolean = false, onConfirm: () ->
     val reducedMotion = remember(context) {
         Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
     }
+    val view = LocalView.current
+    var dragging by remember { mutableStateOf(false) }
+    var phase by remember { mutableFloatStateOf(0f) }
+    var tick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(dragging, reducedMotion) {
+        if (dragging && !reducedMotion) {
+            val start = withFrameNanos { it }
+            while (true) withFrameNanos { phase = (it-start)/1_000_000_000f * 4f }
+        }
+    }
     var width by remember { mutableFloatStateOf(0f) }
     var position by remember { mutableFloatStateOf(0f) }
     val knob = with(LocalDensity.current) { 52.dp.toPx() }
@@ -128,7 +160,7 @@ fun SlideExport(enabled: Boolean = true, busy: Boolean = false, onConfirm: () ->
     val travel = (width-knob-inset*2).coerceAtLeast(0f)
     val active = enabled && !busy
     val latestConfirm by rememberUpdatedState(onConfirm)
-    LaunchedEffect(active) { if (!active) position=0f }
+    LaunchedEffect(active) { if (!active) { position=0f; dragging=false } }
     Box(modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(32.dp)).background(Color(0xFF232B20)).onSizeChanged { width=it.width.toFloat() }
         .semantics(mergeDescendants=true) {
             contentDescription = if(busy) "Preparing pack for WhatsApp" else "Slide to add to WhatsApp"
@@ -136,10 +168,14 @@ fun SlideExport(enabled: Boolean = true, busy: Boolean = false, onConfirm: () ->
             customActions = if(active) listOf(CustomAccessibilityAction("Confirm add to WhatsApp") { latestConfirm(); true }) else emptyList()
         }.pointerInput(active,travel) {
             if(active) detectHorizontalDragGestures(
-                onDragStart={ position=0f; com.stikr.app.audio.AppSounds.slide() },
-                onHorizontalDrag={ change, amount -> change.consume(); position=(position+amount).coerceIn(0f,travel) },
-                onDragCancel={ position=0f },
-                onDragEnd={ val confirmed=slideConfirmed(position,travel); position=0f; if(confirmed) latestConfirm() },
+                onDragStart={ position=0f; tick=0; dragging=true; com.stikr.app.audio.AppSounds.slide() },
+                onHorizontalDrag={ change, amount ->
+                    change.consume(); position=(position+amount).coerceIn(0f,travel)
+                    val next = if(travel>0) (position/travel*6).toInt() else 0
+                    if(next!=tick) { tick=next; view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK) }
+                },
+                onDragCancel={ position=0f; dragging=false },
+                onDragEnd={ val confirmed=slideConfirmed(position,travel); position=0f; dragging=false; if(confirmed) latestConfirm() },
             )
         }, contentAlignment=Alignment.Center) {
         // Pure drawing beneath the content: never adds a second input or semantics layer.
@@ -158,8 +194,17 @@ fun SlideExport(enabled: Boolean = true, busy: Boolean = false, onConfirm: () ->
                     lineTo(0f, size.height)
                     close()
                 }
-                drawPath(liquid, Brush.horizontalGradient(listOf(Color(0xFF3D4E2F), Color(0xFF75885A))))
+                drawPath(liquid, Brush.horizontalGradient(listOf(Color(0xFF3D5137), Color(0xFF87B2A3))))
                 if (!reducedMotion) {
+                    repeat(3) { line ->
+                        val wave = Path()
+                        repeat(36) { index ->
+                            val x = front * index / 35f
+                            val y = size.height * (.22f + line*.26f) + sin(x*.036f-phase+line)*4.dp.toPx()
+                            if(index==0) wave.moveTo(x,y) else wave.lineTo(x,y)
+                        }
+                        drawPath(wave,Color(0xFFCCECD9).copy(alpha=.18f),style=Stroke(1.dp.toPx()))
+                    }
                     repeat(3) { index ->
                         val radius = (2f + index) * density * sin(progress * PI).toFloat()
                         drawCircle(Color(0xFFA9BD83).copy(alpha = .18f + progress * .16f),
@@ -169,9 +214,14 @@ fun SlideExport(enabled: Boolean = true, busy: Boolean = false, onConfirm: () ->
                 }
             }
         }
-        Text(if(busy) "Preparing pack…" else "Slide to add to WhatsApp",fontSize=12.sp,color=Color(0xFFE1EBCD).copy(alpha=if(active) 1f else .5f),modifier=Modifier.padding(start=34.dp,end=28.dp))
+        val progress = if (travel>0) (position/travel).coerceIn(0f,1f) else 0f
+        val front = if(position>0) (inset+position+knob*.55f).coerceAtMost(width) else 0f
+        Box(Modifier.fillMaxWidth(), contentAlignment=Alignment.Center) {
+            Text(if(busy) "Preparing pack…" else "Slide to add to WhatsApp",fontSize=12.sp,color=Color(0xFFE1EBCD).copy(alpha=if(active) 1f else .5f),modifier=Modifier.fillMaxWidth().drawWithContent { clipRect(left=front) { this@drawWithContent.drawContent() } }.padding(start=34.dp,end=28.dp),textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+            Text(if(busy) "Preparing pack…" else "Slide to add to WhatsApp",fontSize=12.sp,color=Color(0xFFE1EBCD).copy(alpha=.4f),modifier=Modifier.fillMaxWidth().drawWithContent { clipRect(right=front) { this@drawWithContent.drawContent() } }.blur(if(reducedMotion) 0.dp else .5.dp).padding(start=34.dp,end=28.dp),textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+        }
         WhatsAppMark(Modifier.align(Alignment.CenterEnd).padding(end=17.dp).size(24.dp))
-        Box(Modifier.align(Alignment.CenterStart).offset { IntOffset((inset+position).roundToInt(),0) }.size(52.dp).background(if(active) Color(0xFFBCC99B) else Color(0xFF646C5B),RoundedCornerShape(26.dp)),contentAlignment=Alignment.Center) {
+        Box(Modifier.align(Alignment.CenterStart).offset { IntOffset((inset+position).roundToInt(),0) }.size(52.dp).graphicsLayer { scaleX=1f+.18f*progress; scaleY=scaleX }.background(if(active) Color(0xFFBCC99B) else Color(0xFF646C5B),RoundedCornerShape(26.dp)),contentAlignment=Alignment.Center) {
             Icon(Icons.AutoMirrored.Filled.ArrowForward,null,tint=Color(0xFF263113))
         }
     }
