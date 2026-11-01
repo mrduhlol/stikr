@@ -55,7 +55,7 @@ fun NeoProgressBar(
         null
     }
     val hatch = palette.contentFor(fill).copy(alpha = 0.32f)
-    val edge = palette.ink
+    val edge = palette.edgeFor(palette.card)
 
     Box(
         modifier = modifier
@@ -71,7 +71,7 @@ fun NeoProgressBar(
             }
             .neoFrame(
                 fill = palette.card,
-                borderColor = palette.ink,
+                borderColor = palette.edgeFor(palette.card),
                 shadowColor = palette.shadow,
                 shape = NeoShapes.control,
                 shadowOffset = NeoDimens.shadowSmall,
@@ -104,7 +104,7 @@ fun NeoProgressBar(
                     if (end <= start) return@onDrawBehind
                     drawRect(fill, topLeft = Offset(start, 0f), size = Size(end - start, size.height))
                     clipRect(left = start, right = end) {
-                        translate(left = if (phase == null) 0f else start) { drawPath(stripes, hatch) }
+                        // Quiet solid progress fits the graphite controls.
                     }
                     // hard ink edges where the fill meets the empty track
                     if (start > 0f) drawRect(edge, Offset(start - rule / 2f, 0f), Size(rule, size.height))
@@ -123,9 +123,9 @@ fun NeoMeter(
     value: Int,
     target: Int,
     modifier: Modifier = Modifier,
-    fill: Color = Neo.palette.ink,
+    fill: Color = Neo.palette.purple,
     empty: Color = Neo.palette.card,
-    edge: Color = Neo.palette.ink,
+    edge: Color = Neo.palette.edgeFor(Neo.palette.card),
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
