@@ -394,13 +394,13 @@ private fun StickerTile(file: File, number: Int, onClick: () -> Unit) {
         Box(
             modifier = Modifier
                 .padding(start = NeoDimens.border, top = NeoDimens.border)
-                .background(palette.ink, NeoShapes.tag)
+                .background(palette.card, NeoShapes.tag)
                 .padding(horizontal = 5.dp, vertical = 1.dp),
         ) {
             Text(
                 text = number.toString().padStart(2, '0'),
                 style = MaterialTheme.typography.labelSmall,
-                color = palette.paper,
+                color = palette.muted,
             )
         }
     }
@@ -413,7 +413,7 @@ private fun AddTile(onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f),
-        fill = palette.butter,
+        fill = palette.cherry,
         shape = NeoShapes.tile,
         shadow = 0.dp,
         onClick = onClick,
@@ -424,14 +424,14 @@ private fun AddTile(onClick: () -> Unit) {
                 Icon(
                     Icons.Default.Add,
                     contentDescription = null,
-                    tint = palette.onAccent,
+                    tint = palette.onCherry,
                     modifier = Modifier.size(34.dp),
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = "Add photos",
                     style = MaterialTheme.typography.labelMedium,
-                    color = palette.onAccent,
+                    color = palette.onCherry,
                 )
             }
         }
@@ -488,7 +488,7 @@ private fun StickerSheet(
                     .aspectRatio(1.4f)
                     .neoFrame(
                         fill = palette.creamDim,
-                        borderColor = palette.ink,
+                        borderColor = palette.edgeFor(palette.creamDim),
                         shadowColor = palette.shadow,
                         shape = NeoShapes.control,
                         shadowOffset = 0.dp,
