@@ -30,10 +30,10 @@ class EditorControlsInteractionTest : ScreenRenderHarness() {
             }
         }
         compose.onAllNodesWithContentDescription("Cherry")[0].performScrollTo().performClick()
-        assertEquals(StickerRenderer.CaptionColor.CHERRY, style.value.captionColor)
-        assertNull(style.value.captionTextColor)
+        assertEquals(StickerRenderer.CaptionColor.CHERRY.fill, style.value.captionTextColor)
+        assertEquals(0, style.value.outline)
         compose.onNodeWithText("Text color").assertExists()
-        compose.onNodeWithText("POSITION").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Alignment").performScrollTo().assertIsDisplayed()
         capture("editor-unified-caption-colors")
     }
 }
