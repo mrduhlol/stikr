@@ -85,7 +85,7 @@ internal object BackupArchive {
                     val filename = path.substring(slash + 1)
                     require(packId.matches(Regex("pack_[A-Za-z0-9_-]+")) && isKnownFile(filename)) { "Unknown backup entry" }
                     val out = File(File(temp, packId), filename)
-                    out.parentFile.mkdirs()
+                    requireNotNull(out.parentFile).mkdirs()
                     var entryBytes = 0L
                     FileOutputStream(out).use { output ->
                         val buffer = ByteArray(BUFFER_SIZE)
