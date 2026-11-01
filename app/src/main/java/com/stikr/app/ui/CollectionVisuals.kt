@@ -116,6 +116,10 @@ internal fun slideConfirmed(position: Float, travel: Float): Boolean = travel > 
 /** A drag-only primary action; TalkBack exposes an explicit confirmation action. */
 @Composable
 fun SlideExport(enabled: Boolean = true, busy: Boolean = false, onConfirm: () -> Unit, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val reducedMotion = remember(context) {
+        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+    }
     var width by remember { mutableFloatStateOf(0f) }
     var position by remember { mutableFloatStateOf(0f) }
     val knob = with(LocalDensity.current) { 52.dp.toPx() }
@@ -137,6 +141,33 @@ fun SlideExport(enabled: Boolean = true, busy: Boolean = false, onConfirm: () ->
                 onDragEnd={ val confirmed=slideConfirmed(position,travel); position=0f; if(confirmed) latestConfirm() },
             )
         }, contentAlignment=Alignment.Center) {
+        // Pure drawing beneath the content: never adds a second input or semantics layer.
+        Canvas(Modifier.matchParentSize()) {
+            if (active && position > 0f && travel > 0f) {
+                val progress = (position / travel).coerceIn(0f, 1f)
+                val front = (inset + position + knob * .55f).coerceAtMost(size.width)
+                val amplitude = if (reducedMotion) 0f else 12.dp.toPx() * sin(progress * PI).toFloat()
+                val liquid = Path().apply {
+                    moveTo(0f, 0f)
+                    lineTo(front, 0f)
+                    cubicTo(front - amplitude, size.height * .22f,
+                        front + amplitude, size.height * .34f, front + amplitude * .4f, size.height * .5f)
+                    cubicTo(front - amplitude, size.height * .67f,
+                        front + amplitude, size.height * .85f, front, size.height)
+                    lineTo(0f, size.height)
+                    close()
+                }
+                drawPath(liquid, Brush.horizontalGradient(listOf(Color(0xFF3D4E2F), Color(0xFF75885A))))
+                if (!reducedMotion) {
+                    repeat(3) { index ->
+                        val radius = (2f + index) * density * sin(progress * PI).toFloat()
+                        drawCircle(Color(0xFFA9BD83).copy(alpha = .18f + progress * .16f),
+                            radius, Offset(front + (12f + index * 9f) * density,
+                                size.height * (.25f + index * .24f)))
+                    }
+                }
+            }
+        }
         Text(if(busy) "Preparing pack…" else "Slide to add to WhatsApp",fontSize=12.sp,color=Color(0xFFE1EBCD).copy(alpha=if(active) 1f else .5f),modifier=Modifier.padding(start=34.dp,end=28.dp))
         WhatsAppMark(Modifier.align(Alignment.CenterEnd).padding(end=17.dp).size(24.dp))
         Box(Modifier.align(Alignment.CenterStart).offset { IntOffset((inset+position).roundToInt(),0) }.size(52.dp).background(if(active) Color(0xFFD5F277) else Color(0xFF8A877A),RoundedCornerShape(26.dp)),contentAlignment=Alignment.Center) {
