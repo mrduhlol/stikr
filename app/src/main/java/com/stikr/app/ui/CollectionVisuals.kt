@@ -3,7 +3,7 @@ package com.stikr.app.ui
 import android.graphics.BitmapFactory
 import android.provider.Settings
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
@@ -15,6 +15,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -179,30 +180,60 @@ fun SlideExport(enabled: Boolean = true, busy: Boolean = false, onConfirm: () ->
 /** Call only after WhatsApp returns Activity.RESULT_OK. */
 @Composable
 fun PackAddedCelebration(pack: StickerPack, onFinished: () -> Unit) {
-    val context=LocalContext.current
-    val reduced=remember { Settings.Global.getFloat(context.contentResolver,Settings.Global.ANIMATOR_DURATION_SCALE,1f)==0f }
-    val pop=remember { Animatable(if(reduced) 1f else .75f) }
-    val turn=remember { Animatable(0f) }
-    val burst=remember { Animatable(0f) }
+    val context = LocalContext.current
+    val reduced = remember(context) {
+        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+    }
+    val arrival = remember(pack.id) { Animatable(if (reduced) 1f else 0f) }
+    val confirmation = remember(pack.id) { Animatable(if (reduced) 1f else 0f) }
     val finish by rememberUpdatedState(onFinished)
     LaunchedEffect(pack.id) {
-        if(!reduced) { pop.animateTo(1f,tween(180)); turn.animateTo(360f,tween(1350,easing=LinearEasing)); burst.animateTo(1f,tween(1100)) }
-        delay(if(reduced) 1600 else 700); finish()
-    }
-    Box(Modifier.fillMaxSize().background(Color(0xED0C0E0D)),contentAlignment=Alignment.Center) {
-        Column(horizontalAlignment=Alignment.CenterHorizontally,modifier=Modifier.padding(32.dp).widthIn(max=330.dp)) {
-            Text("Pack added",style=MaterialTheme.typography.headlineMedium,color=Color(0xFFF3F7E9),modifier=Modifier.padding(bottom=28.dp).semantics { liveRegion=LiveRegionMode.Polite })
-            val back=turn.value in 90f..270f
-            Box(Modifier.fillMaxWidth().graphicsLayer { scaleX=pop.value; scaleY=pop.value; rotationY=turn.value; cameraDistance=12*density }) {
-                PackCollectionCard(pack, Modifier.graphicsLayer { alpha=if(back) 0f else 1f })
-                if(back) Box(Modifier.matchParentSize().graphicsLayer { rotationY=180f }.background(Color(0xFFE5D6C8)),contentAlignment=Alignment.Center) {
-                    Column(horizontalAlignment=Alignment.CenterHorizontally) { Text("stikr",fontSize=48.sp,fontWeight=FontWeight.Bold,color=Color(0xFF252019)); Text("Little things. Big personality.",fontSize=12.sp,color=Color(0xFF252019)) }
-                }
-            }
+        if (!reduced) {
+            arrival.animateTo(1f, tween(650, easing = FastOutSlowInEasing))
+            confirmation.animateTo(1f, tween(200))
         }
-        if(!reduced && burst.value>0f) Canvas(Modifier.fillMaxSize()) {
-            val colors=listOf(Color(0xFFD5F277),Color(0xFFBDA1ED),Color(0xFFF4D8AA),Color(0xFFF29ABB))
-            repeat(32) { i -> val angle=i*2*PI/32; val distance=(90+(i%4)*24).dp.toPx()*burst.value; drawRect(colors[i%4].copy(alpha=1-burst.value),Offset(center.x+cos(angle).toFloat()*distance,center.y+sin(angle).toFloat()*distance+burst.value*70.dp.toPx()),Size(5.dp.toPx(),10.dp.toPx())) }
+        delay(1600)
+        finish()
+    }
+    BoxWithConstraints(
+        Modifier.fillMaxSize().background(Color(0xED0C0E0D)).safeDrawingPadding(),
+        contentAlignment = Alignment.Center,
+    ) {
+        // Bound both axes: the collectible must leave room for the outcome on short phones.
+        val cardWidth = minOf(252.dp, maxWidth * .66f, (maxHeight - 180.dp).coerceAtLeast(0.dp) / 1.95f)
+        val travel = with(LocalDensity.current) { maxHeight.toPx() }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(vertical = 20.dp),
+        ) {
+            Text(
+                "Pack added", style = MaterialTheme.typography.headlineMedium,
+                color = Color(0xFFF3F7E9),
+                modifier = Modifier.padding(bottom = 24.dp).semantics { liveRegion = LiveRegionMode.Polite },
+            )
+            Box(Modifier.width(cardWidth).graphicsLayer {
+                // A bottom-hinged reveal, rather than a full sideways turntable spin.
+                transformOrigin = TransformOrigin(.5f, 1f)
+                rotationX = -78f * (1f - arrival.value)
+                translationY = travel * (1f - arrival.value)
+                alpha = arrival.value
+                cameraDistance = 16f * density
+            }) {
+                PackCollectionCard(pack)
+            }
+            Row(
+                Modifier.padding(top = 24.dp).graphicsLayer { alpha = confirmation.value },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Box(
+                    Modifier.size(36.dp).background(Color(0xFFD3EF76), RoundedCornerShape(18.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Filled.Check, null, Modifier.size(23.dp), tint = Color(0xFF263113))
+                }
+                Text("Added to WhatsApp", style = MaterialTheme.typography.bodyMedium, color = Color(0xFFE1EBCD))
+            }
         }
     }
 }
