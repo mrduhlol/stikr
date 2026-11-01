@@ -56,7 +56,7 @@ class ProfilePanelTest : ScreenRenderHarness() {
         compose.onNodeWithText("Last backup: Today at 10:30").assertIsDisplayed()
         compose.onNodeWithText("Restore backup").performClick()
         assertEquals(0, restores)
-        compose.onNodeWithText("Your local packs stay in place.", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("local data wins ties.", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Cancel").performClick()
         assertEquals(0, restores)
         compose.onNodeWithText("Restore backup").performClick()
