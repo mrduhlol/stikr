@@ -108,7 +108,7 @@ fun EditorScreen(
     }
     // A picked photo is work in progress: leaving asks first.
     val leave = {
-        if (state.source != null && !state.saving) confirmDiscard = true else onBack()
+        if (!state.saving) { if (state.source != null) confirmDiscard = true else onBack() }
     }
 
     LaunchedEffect(Unit) {
@@ -193,13 +193,13 @@ private fun TopBar(packName: String, editing: Boolean, onBack: () -> Unit) {
         )
         Column(modifier = Modifier.padding(start = 14.dp)) {
             Text(
-                text = if (editing) "EDIT STICKER" else "NEW STICKER",
+                text = if (editing) "Edit sticker" else "Create a sticker",
                 style = MaterialTheme.typography.headlineMedium,
                 color = palette.ink,
                 modifier = Modifier.semantics { heading() },
             )
             Text(
-                text = if (packName.isNotEmpty()) "INTO “${packName.uppercase()}”" else "PICK A PHOTO TO START",
+                text = if (packName.isNotEmpty()) "In “$packName”" else "Pick a photo to start",
                 style = MaterialTheme.typography.labelSmall,
                 color = palette.muted,
                 maxLines = 1,
