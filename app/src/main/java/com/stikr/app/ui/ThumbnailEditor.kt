@@ -106,7 +106,7 @@ fun ThumbnailEditor(onSave: (ByteArray) -> Unit, onBack: () -> Unit, initialFile
             } else {
                 Text(if (mode == 0) "Frame your thumbnail" else "Make it yours", color = palette.ink, style = MaterialTheme.typography.titleLarge)
                 if (mode == 0) Text("Drag to position. Pinch or use Zoom to crop.", color = palette.muted, style = MaterialTheme.typography.bodySmall)
-                Box(Modifier.fillMaxWidth().aspectRatio(4f / 5f).background(palette.card), contentAlignment = Alignment.Center) {
+                Box(Modifier.align(Alignment.CenterHorizontally).then(if (mode == 1) Modifier.widthIn(max = 232.dp) else Modifier).fillMaxWidth().aspectRatio(4f / 5f).background(palette.card), contentAlignment = Alignment.Center) {
                     val photo = source
                     if (mode == 0 && photo == null) {
                         Text(if (busy) "Opening photo…" else "Choose a photo below", color = palette.muted)
@@ -135,6 +135,7 @@ fun ThumbnailEditor(onSave: (ByteArray) -> Unit, onBack: () -> Unit, initialFile
                     NeoOutlinedButton(text = if (source == null) "Choose photo" else "Change photo", onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, enabled = !busy)
                 } else {
                     NeoTextField(words, { words = it.take(500) }, label = "Cover text", placeholder = "Name your little world", singleLine = false, enabled = !busy)
+                    Text("Long text automatically fits inside the cover. Use fewer words for larger lettering.", color = palette.muted, style = MaterialTheme.typography.bodySmall)
                     TextStyleControls(font, textSize, bold, background, textColor, { font = it }, { textSize = it }, { bold = it }, { background = it }, { textColor = it }, 32f..400f)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Italic", Modifier.weight(1f), color = palette.ink)
