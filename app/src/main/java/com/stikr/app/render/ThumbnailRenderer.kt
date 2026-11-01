@@ -25,7 +25,7 @@ data class ThumbnailText(
 
 object ThumbnailRenderer {
     const val WIDTH = 1080
-    const val HEIGHT = 1350
+    const val HEIGHT = 1440
 
     fun clamp(sourceWidth: Int, sourceHeight: Int, crop: ThumbnailCrop): ThumbnailCrop {
         require(sourceWidth > 0 && sourceHeight > 0)
