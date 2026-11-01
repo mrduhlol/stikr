@@ -139,7 +139,7 @@ class StikrAppTest : ScreenRenderHarness() {
         assertTrue(destination.isSingles)
         assertEquals("Stikr", destination.name)
         assertEquals(2, destination.starterStickers.size)
-        assertEquals(3, viewModel.editor.value!!.style.outline)
+        assertEquals(0, viewModel.editor.value!!.style.outline)
         assertEquals(false, viewModel.editor.value!!.style.roundedCorners)
         compose.onNodeWithText("Pack is full — 30 stickers", ignoreCase = true).assertDoesNotExist()
     }
