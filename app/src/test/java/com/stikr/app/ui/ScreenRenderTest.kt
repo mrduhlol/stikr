@@ -160,7 +160,7 @@ class ScreenRenderTest {
     @Test
     fun editorBottomLight() {
         editorScreen(dark = false)
-        capture("editor-light-bottom", scrollTo = "BOTTOM")
+        capture("editor-light-bottom", scrollTo = "Delete text")
     }
 
     @Test
@@ -172,7 +172,7 @@ class ScreenRenderTest {
     @Test
     fun editorBottomDark() {
         editorScreen(dark = true)
-        capture("editor-dark-bottom", scrollTo = "BOTTOM")
+        capture("editor-dark-bottom", scrollTo = "Delete text")
     }
 
     @Test
