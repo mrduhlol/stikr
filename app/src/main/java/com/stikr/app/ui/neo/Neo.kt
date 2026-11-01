@@ -354,7 +354,7 @@ fun NeoSegmented(
             .height(IntrinsicSize.Min)
             .neoFrame(
                 fill = palette.card,
-                borderColor = palette.ink,
+                borderColor = palette.edgeFor(palette.card),
                 shadowColor = palette.shadow,
                 shape = NeoShapes.control,
                 shadowOffset = NeoDimens.shadowSmall,
@@ -376,7 +376,7 @@ fun NeoSegmented(
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = NeoDimens.touch)
-                    .then(if (selected) Modifier.background(palette.ink) else Modifier)
+                    .then(if (selected) Modifier.background(palette.cherry) else Modifier)
                     .selectable(selected = selected, role = Role.RadioButton) {
                         if (!selected) haptics(NeoHaptic.Tap)
                         onSelect(index)
@@ -387,7 +387,7 @@ fun NeoSegmented(
                 Text(
                     text = option,
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (selected) palette.paper else palette.ink,
+                    color = if (selected) palette.onCherry else palette.ink,
                 )
             }
         }
@@ -455,7 +455,7 @@ fun NeoSwatch(
                 .size(40.dp)
                 .neoFrame(
                     fill = fill,
-                    borderColor = palette.ink,
+                    borderColor = palette.edgeFor(palette.card),
                     shadowColor = palette.shadow,
                     shape = NeoShapes.control,
                     shadowOffset = NeoDimens.shadowSmall,
@@ -517,7 +517,7 @@ private fun NeoSliderThumb(interaction: MutableInteractionSource) {
             .size(width = 24.dp, height = 36.dp)
             .neoFrame(
                 fill = palette.cherry,
-                borderColor = palette.ink,
+                borderColor = palette.edgeFor(palette.card),
                 shadowColor = palette.shadow,
                 shape = NeoShapes.tag,
                 shadowOffset = NeoDimens.shadowSmall,
@@ -530,15 +530,15 @@ private fun NeoSliderThumb(interaction: MutableInteractionSource) {
 @Composable
 private fun NeoSliderTrack(state: SliderState) {
     val palette = Neo.palette
-    val ink = palette.ink
-    val tick = palette.ink.copy(alpha = 0.35f)
+    val ink = palette.purple
+    val tick = palette.muted.copy(alpha = 0.35f)
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(16.dp)
             .neoFrame(
                 fill = palette.card,
-                borderColor = palette.ink,
+                borderColor = palette.edgeFor(palette.card),
                 shadowColor = palette.shadow,
                 shape = NeoShapes.tag,
                 shadowOffset = 0.dp,
@@ -562,7 +562,7 @@ private fun NeoSliderTrack(state: SliderState) {
 fun NeoTag(
     text: String,
     modifier: Modifier = Modifier,
-    fill: Color = Neo.palette.butter,
+    fill: Color = Neo.palette.card,
     rotation: Float = 0f,
 ) {
     val palette = Neo.palette
@@ -645,13 +645,13 @@ fun NeoStepLabel(number: Int, title: String, modifier: Modifier = Modifier) {
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
-                .background(palette.ink, NeoShapes.tag)
+                .background(palette.cherry, NeoShapes.tag)
                 .padding(horizontal = 6.dp, vertical = 2.dp),
         ) {
             Text(
                 text = number.toString().padStart(2, '0'),
                 style = MaterialTheme.typography.labelMedium,
-                color = palette.paper,
+                color = palette.ink,
             )
         }
         Spacer(Modifier.width(10.dp))
@@ -694,32 +694,15 @@ fun NeoWordmark(modifier: Modifier = Modifier, trailing: (@Composable RowScope.(
             .heightIn(min = 56.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .rotate(-6f)
-                .size(42.dp)
-                .neoFrame(
-                    fill = palette.purple,
-                    borderColor = palette.ink,
-                    shadowColor = palette.shadow,
-                    shape = NeoShapes.control,
-                    shadowOffset = NeoDimens.shadowSmall,
-                    clipContent = true,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            // The launcher foreground carries adaptive-icon padding; scale past it.
-            Image(
-                painter = painterResource(R.mipmap.ic_launcher_foreground),
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.requiredSize(66.dp),
-            )
-        }
+        Image(
+            painter = painterResource(R.drawable.stikr_ghost),
+            contentDescription = null,
+            modifier = Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)),
+        )
         Spacer(Modifier.width(14.dp))
         Text(
             text = "stikr",
-            style = TextStyle(fontFamily = Anton, fontSize = 34.sp, lineHeight = 36.sp),
+            style = MaterialTheme.typography.headlineLarge,
             color = palette.ink,
             modifier = Modifier.semantics { heading() },
         )
@@ -894,8 +877,8 @@ fun NeoSnackbar(data: SnackbarData, modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .padding(end = NeoDimens.shadow, bottom = NeoDimens.shadow)
             .neoFrame(
-                fill = palette.ink,
-                borderColor = palette.ink,
+                fill = palette.card,
+                borderColor = palette.edgeFor(palette.card),
                 shadowColor = palette.cherry,
                 shape = NeoShapes.control,
                 shadowOffset = NeoDimens.shadow,
@@ -906,13 +889,13 @@ fun NeoSnackbar(data: SnackbarData, modifier: Modifier = Modifier) {
         Box(
             Modifier
                 .size(10.dp)
-                .background(palette.butter),
+                .background(palette.purple),
         )
         Spacer(Modifier.width(12.dp))
         Text(
             text = data.visuals.message,
             style = MaterialTheme.typography.labelLarge,
-            color = palette.paper,
+            color = palette.ink,
         )
     }
 }
