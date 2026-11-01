@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.IntentSenderRequest
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -57,21 +56,16 @@ fun StikrApp(
     var celebration by remember { mutableStateOf<StickerPack?>(null) }
     var thumbnailSaving by remember { mutableStateOf(false) }
     var singleEditing by rememberSaveable { mutableStateOf(false) }
-    val backupController = viewModel.googleBackup
-    val backup by backupController.state.collectAsStateWithLifecycle()
-    var showProfile by rememberSaveable { mutableStateOf(false) }
-    var confirmBackupReplace by rememberSaveable { mutableStateOf(false) }
-    val googleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        backupController.finishAuthorization(if (result.resultCode == Activity.RESULT_OK) result.data else null)
+    var showLocalBackup by rememberSaveable { mutableStateOf(false) }
+    var restoreUri by rememberSaveable { mutableStateOf<String?>(null) }
+    val backupBusy by viewModel.localBackupBusy.collectAsStateWithLifecycle()
+    val saveBackup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        uri?.let { viewModel.exportLocalBackup(it) }
     }
-    val resolveGoogle: (android.app.PendingIntent) -> Unit = { pending ->
-        try { googleLauncher.launch(IntentSenderRequest.Builder(pending.intentSender).build()) }
-        catch (_: Exception) { backupController.finishAuthorization(null) }
+    val openBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        restoreUri = uri?.toString()
     }
     val packs by viewModel.packs.collectAsStateWithLifecycle()
-    LaunchedEffect(packs) {
-        backupController.libraryChanged(packs.sortedBy { it.id }.joinToString(";") { "${it.id}:${it.contentVersion}" })
-    }
     val editor by viewModel.editor.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val exportingPackId by viewModel.exportingPackId.collectAsStateWithLifecycle()
@@ -205,7 +199,7 @@ fun StikrApp(
                 when (target) {
                     Screen.HOME.name -> HomeScreen(
                         packs = packs,
-                        onProfile = { showProfile = true },
+                        onBackup = { showLocalBackup = true },
                         onOpenPack = ::openPack,
                         onCreatePack = { name -> viewModel.createPack(name) { openPack(it.id) } },
                         onMakeSticker = ::makeSticker,
@@ -315,28 +309,19 @@ fun StikrApp(
         ) { data ->
             NeoSnackbar(data)
         }
-        if (showProfile) ProfilePanel(
-            accountLabel = backup.accountLabel,
-            lastBackupLabel = backup.lastBackupAt?.let { java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(java.util.Date(it)) },
-            busy = backup.busy, status = backup.status,
-            onConnect = { backupController.connect(resolveGoogle) },
-            onBackup = {
-                if (backup.restoreAvailable == true) confirmBackupReplace = true
-                else backupController.backupNow(resolveGoogle)
-            },
-            onRestore = { backupController.restore(resolveGoogle) { viewModel.refresh() } },
-            onDisconnect = backupController::disconnect,
-            onDismiss = { showProfile = false },
-            automaticBackup = backup.automaticBackup,
-            onAutomaticBackup = backupController::setAutomaticBackup,
+        if (showLocalBackup) LocalBackupPanel(
+            busy = backupBusy,
+            onExport = { saveBackup.launch("stikr-backup-${java.time.LocalDate.now()}.zip") },
+            onRestore = { openBackup.launch(arrayOf("application/zip", "application/octet-stream")) },
+            onDismiss = { showLocalBackup = false },
         )
-        if (confirmBackupReplace) ConfirmDialog(
-            kicker = "", title = "Replace the saved backup?",
-            body = "Your current library will replace the backup in this Google account. Restore first if it contains collections you want to keep.",
-            confirmLabel = "Replace backup", dismissLabel = "Cancel",
-            onDismiss = { confirmBackupReplace = false },
-            onConfirm = { confirmBackupReplace = false; backupController.backupNow(resolveGoogle) },
-        )
+        restoreUri?.let { selected -> ConfirmDialog(
+            kicker = "", title = "Restore this backup?",
+            body = "Missing packs will be restored. For matching packs, the newer version is kept; local data wins ties.",
+            confirmLabel = "Restore", dismissLabel = "Cancel",
+            onDismiss = { restoreUri = null },
+            onConfirm = { restoreUri = null; viewModel.restoreLocalBackup(android.net.Uri.parse(selected)) },
+        ) }
         celebration?.let { pack -> PackAddedCelebration(pack) { celebration = null } }
     }
 
