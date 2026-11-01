@@ -6,6 +6,7 @@ import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.RandomAccessFile
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -28,7 +29,20 @@ internal object BackupArchive {
         ZipOutputStream(BufferedOutputStream(FileOutputStream(destination))).use { zip ->
             packsDir.listFiles { f -> f.isDirectory && f.name.matches(Regex("pack_[A-Za-z0-9_-]+")) }
                 .orEmpty().sortedBy { it.name }.forEach { dir ->
-                    val files = dir.listFiles { f -> f.isFile && isKnownFile(f.name) }.orEmpty().sortedBy { it.name }
+                    val meta = File(dir, "pack.json")
+                    if (!meta.isFile || meta.length() > 1024 * 1024) return@forEach
+                    val json = JSONObject(meta.readText(Charsets.UTF_8))
+                    val names = linkedSetOf("pack.json")
+                    json.optJSONArray("stickers")?.let { a ->
+                        for (i in 0 until a.length()) {
+                            val sticker = a.getString(i)
+                            names += sticker
+                            names += "$sticker.source.png"
+                            names += "$sticker.edit.json"
+                        }
+                    }
+                    listOf("trayImage", "thumbnailImage").forEach { field -> json.optString(field).takeIf { it.isNotEmpty() }?.let(names::add) }
+                    val files = names.mapNotNull { name -> File(dir, name).takeIf { it.isFile } }.sortedBy { it.name }
                     files.forEach { file ->
                         zip.putNextEntry(ZipEntry("packs/${dir.name}/${file.name}"))
                         FileInputStream(file).use { input -> input.copyTo(zip, BUFFER_SIZE) }
@@ -41,6 +55,7 @@ internal object BackupArchive {
     /** Expands to private staging, then validates every path, JSON record and referenced asset. */
     fun validate(source: File, tempParent: File): Validated {
         require(source.isFile && source.length() <= MAX_ARCHIVE_BYTES) { "Backup archive is missing or too large" }
+        rejectSymlinks(source)
         val temp = File.createTempFile("backup-restore-", ".tmp", tempParent).also { it.delete(); it.mkdir() }
         try {
             val seen = mutableSetOf<String>()
@@ -123,6 +138,44 @@ internal object BackupArchive {
     private fun safeEntry(name: String): Boolean =
         !name.startsWith('/') && !name.contains('\\') && !name.split('/').any { it.isEmpty() || it == "." || it == ".." } &&
             name.startsWith("packs/") && name.count { it == '/' } == 2
+
+    /** Java's ZipEntry omits Unix mode bits, so inspect central-directory attributes directly. */
+    private fun rejectSymlinks(source: File) {
+        RandomAccessFile(source, "r").use { file ->
+            val tailSize = minOf(file.length(), 65_557L).toInt()
+            val tail = ByteArray(tailSize)
+            file.seek(file.length() - tailSize)
+            file.readFully(tail)
+            var eocd = -1
+            for (i in tail.size - 22 downTo 0) {
+                if (u32(tail, i) == 0x06054b50L) { eocd = i; break }
+            }
+            require(eocd >= 0) { "Invalid ZIP directory" }
+            val entryCount = u16(tail, eocd + 10)
+            val directoryOffset = u32(tail, eocd + 16)
+            require(entryCount <= MAX_ENTRIES && directoryOffset < file.length()) { "Invalid ZIP directory" }
+            file.seek(directoryOffset)
+            repeat(entryCount) {
+                val header = ByteArray(46)
+                file.readFully(header)
+                require(u32(header, 0) == 0x02014b50L) { "Invalid ZIP directory entry" }
+                val madeBy = u16(header, 4) ushr 8
+                val external = u32(header, 38)
+                val mode = (external ushr 16).toInt()
+                require(madeBy != 3 || mode and 0xF000 != 0xA000) { "ZIP symlinks are not allowed" }
+                val nameLength = u16(header, 28)
+                val extraLength = u16(header, 30)
+                val commentLength = u16(header, 32)
+                file.seek(file.filePointer + nameLength + extraLength + commentLength)
+            }
+        }
+    }
+
+    private fun u16(bytes: ByteArray, offset: Int): Int =
+        (bytes[offset].toInt() and 0xff) or ((bytes[offset + 1].toInt() and 0xff) shl 8)
+
+    private fun u32(bytes: ByteArray, offset: Int): Long =
+        u16(bytes, offset).toLong() or (u16(bytes, offset + 2).toLong() shl 16)
 
     private fun validAssetName(name: String): Boolean = name.isNotEmpty() && name.length <= 180 &&
         name.matches(Regex("[A-Za-z0-9_.-]+")) && name != "." && name != ".."
