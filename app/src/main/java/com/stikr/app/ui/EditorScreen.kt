@@ -408,76 +408,6 @@ private fun OutlineCard(state: EditorState, onStyle: (StickerRenderer.Style) -> 
         Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "COLOUR",
-                style = MaterialTheme.typography.labelMedium,
-                color = palette.muted,
-                modifier = Modifier.weight(1f),
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StickerRenderer.OutlineColor.entries.forEach { outline ->
-                    NeoSwatch(
-                        fill = Color(outline.color),
-                        label = outline.label,
-                        selected = state.style.outlineColor == outline,
-                        onClick = { onStyle(state.style.copy(outlineColor = outline)) },
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CaptionCard(state: EditorState, onStyle: (StickerRenderer.Style) -> Unit) {
-    val palette = Neo.palette
-    NeoCard(
-        modifier = Modifier.fillMaxWidth(),
-        padding = PaddingValues(18.dp),
-    ) {
-        NeoStepLabel(3, "Caption")
-        Spacer(Modifier.height(14.dp))
-        NeoTextField(
-            value = state.style.caption,
-            onValueChange = { value -> onStyle(state.style.copy(caption = value)) },
-            label = "Text — optional",
-            placeholder = "Say something",
-            enabled = state.source != null,
-        )
-
-        if (state.style.caption.isNotBlank()) {
-            Spacer(Modifier.height(18.dp))
-            TextStyleControls(
-                font = state.style.captionFont, size = state.style.captionSize,
-                bold = state.style.captionBold, background = state.style.captionBackground,
-                textColor = state.style.captionTextColor ?: state.style.captionColor.fill,
-                onFont = { onStyle(state.style.copy(captionFont = it)) },
-                onSize = { onStyle(state.style.copy(captionSize = it)) },
-                onBold = { onStyle(state.style.copy(captionBold = it)) },
-                onBackground = { onStyle(state.style.copy(captionBackground = it)) },
-                onTextColor = { onStyle(state.style.copy(captionTextColor = it)) },
-            )
-            Spacer(Modifier.height(18.dp))
-            Text(
-                text = "COLOUR",
-                style = MaterialTheme.typography.labelMedium,
-                color = palette.muted,
-            )
-            Spacer(Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                StickerRenderer.CaptionColor.entries.forEach { color ->
-                    NeoSwatch(
-                        fill = Color(color.fill),
-                        label = color.label,
-                        selected = state.style.captionColor == color,
-                        onClick = { onStyle(state.style.copy(captionColor = color, captionTextColor = null)) },
-                    )
-                }
-            }
-            Spacer(Modifier.height(18.dp))
-            Text(
                 text = "POSITION",
                 style = MaterialTheme.typography.labelMedium,
                 color = palette.muted,
@@ -573,14 +503,6 @@ private val StickerRenderer.OutlineColor.label: String
     get() = when (this) {
         StickerRenderer.OutlineColor.WHITE -> "White"
         StickerRenderer.OutlineColor.INK -> "Ink"
-    }
-
-private val StickerRenderer.CaptionColor.label: String
-    get() = when (this) {
-        StickerRenderer.CaptionColor.CREAM -> "Cream"
-        StickerRenderer.CaptionColor.INK -> "Ink"
-        StickerRenderer.CaptionColor.BUTTER -> "Butter"
-        StickerRenderer.CaptionColor.CHERRY -> "Cherry"
     }
 
 /** The see-through checkerboard behind the preview, so transparency reads clearly. */
