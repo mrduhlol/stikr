@@ -79,9 +79,15 @@ document.querySelectorAll('[data-demo-tab]').forEach(button=>button.addEventList
 demo?.addEventListener('load',()=>{if(requestedTab)openDemoTab(requestedTab);});
 const actions=document.getElementById('hero-actions');
 if(actions && 'IntersectionObserver' in window) {
-  const observer=new IntersectionObserver(entries=>{
-    document.body.classList.toggle('has-sticky',!entries[0].isIntersecting && entries[0].boundingClientRect.top<0);
-  });
-  observer.observe(actions);
-  addEventListener('pagehide',()=>observer.disconnect(),{once:true});
+  let observer;
+  const observe=()=>{
+    observer?.disconnect();
+    observer=new IntersectionObserver(entries=>{
+      document.body.classList.toggle('has-sticky',!entries[0].isIntersecting && entries[0].boundingClientRect.top<0);
+    });
+    observer.observe(actions);
+  };
+  observe();
+  addEventListener('pagehide',()=>observer.disconnect());
+  addEventListener('pageshow',event=>{if(event.persisted)observe();});
 }
