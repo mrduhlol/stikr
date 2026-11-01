@@ -408,6 +408,60 @@ private fun OutlineCard(state: EditorState, onStyle: (StickerRenderer.Style) -> 
         Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
+                text = "COLOUR",
+                style = MaterialTheme.typography.labelMedium,
+                color = palette.muted,
+                modifier = Modifier.weight(1f),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                StickerRenderer.OutlineColor.entries.forEach { outline ->
+                    NeoSwatch(
+                        fill = Color(outline.color),
+                        label = outline.label,
+                        selected = state.style.outlineColor == outline,
+                        onClick = { onStyle(state.style.copy(outlineColor = outline)) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CaptionCard(state: EditorState, onStyle: (StickerRenderer.Style) -> Unit) {
+    val palette = Neo.palette
+    NeoCard(
+        modifier = Modifier.fillMaxWidth(),
+        padding = PaddingValues(18.dp),
+    ) {
+        NeoStepLabel(3, "Caption")
+        Spacer(Modifier.height(14.dp))
+        NeoTextField(
+            value = state.style.caption,
+            onValueChange = { value -> onStyle(state.style.copy(caption = value)) },
+            label = "Text — optional",
+            placeholder = "Say something",
+            enabled = state.source != null,
+        )
+
+        if (state.style.caption.isNotBlank()) {
+            Spacer(Modifier.height(18.dp))
+            TextStyleControls(
+                font = state.style.captionFont, size = state.style.captionSize,
+                bold = state.style.captionBold, background = state.style.captionBackground,
+                textColor = state.style.captionTextColor ?: state.style.captionColor.fill,
+                onFont = { onStyle(state.style.copy(captionFont = it)) },
+                onSize = { onStyle(state.style.copy(captionSize = it)) },
+                onBold = { onStyle(state.style.copy(captionBold = it)) },
+                onBackground = { onStyle(state.style.copy(captionBackground = it)) },
+                onTextColor = { selected ->
+                    val classic = StickerRenderer.CaptionColor.entries.firstOrNull { it.fill == selected }
+                    onStyle(if (classic != null) state.style.copy(captionColor = classic, captionTextColor = null)
+                        else state.style.copy(captionTextColor = selected))
+                },
+            )
+            Spacer(Modifier.height(18.dp))
+            Text(
                 text = "POSITION",
                 style = MaterialTheme.typography.labelMedium,
                 color = palette.muted,
