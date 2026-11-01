@@ -1,6 +1,6 @@
 # Optional Google Drive backup setup
 
-The app remains usable offline. No Google Cloud project or Android OAuth client has been configured for this implementation, and live authorization/upload/restore has **not** been tested. The parent integration must merge the repository/archive and `DriveBackupStore` implementation before building. No embedded client secret, refresh token, web client ID or `google-services.json` is required by this native AuthorizationClient flow.
+The app remains usable offline. No Google Cloud project or Android OAuth client has been configured for this implementation, and live authorization/upload/restore has **not** been tested. The account panel, authorization flow, archive merge and Drive storage are wired in the app. No embedded client secret, refresh token, web client ID or `google-services.json` is required by this native AuthorizationClient flow.
 
 ## Configure Google Cloud
 
@@ -21,7 +21,7 @@ The app remains usable offline. No Google Cloud project or Android OAuth client 
 4. Configure requested scopes: `https://www.googleapis.com/auth/drive.appdata`, `openid`, and `email`. The latter two obtain a real verified email label from Google's userinfo endpoint; no profile/photo scope or general Drive access is requested. Drive app data is hidden application storage, distinct from Android's system backup folder.
 5. Install an APK signed with that certificate on a device with current Google Play services and a signed-in Google account. Sideloading does not bypass OAuth client registration, consent, audience/test-user restrictions or organization policies. Debug APKs use a different certificate and need their own Android OAuth registration. If distributed with Play App Signing, register the **app signing** certificate as well, rather than only the upload key.
 
-## Parent UI integration contract
+## How backup works
 
 Own `GoogleBackupController(context, repository)` alongside the ViewModel; call methods on the main thread and call `close()` when its owner is cleared. Collect `state`. Existing required fields are preserved; the additive `restoreAvailable: Boolean?` means unknown/check failed (`null`), remote archive exists (`true`), or automatic backup may be enabled (`false`). `accountLabel` is the verified email from OAuth userinfo, never a fabricated label. Only that label and last successful backup timestamp persist; automatic backup deliberately defaults off on each controller creation.
 
@@ -50,9 +50,9 @@ Send a stable library content fingerprint to `libraryChanged`; its first emissio
 
 Disconnect cancels pending authorization/debounce and in-flight operation, waits for cancellation/IO completion, then invokes the official `revokeAccess(RevokeAccessRequest)` with the verified account and scopes. It clears local preferences and tokens even if revocation fails, and reports local-only disconnect honestly. Revocation removes all scopes granted to this app for that account, per Google's API contract. It does not delete the remote archive or local packs.
 
-## Integration validation still required
+## Validation and limits
 
-No Gradle commands were run in this implementation worktree. Unit tests cover first-emission suppression, repeat fingerprints, safe state defaults and HTTP 401 recognition. Parent should run the integrated build/tests after merging backend APIs, then exercise on a configured device: canceled consent, missing/outdated Play services, wrong signing SHA-1/developer error, offline operation, backup/restore round trip with images/sounds/editor data, reinstall → Connect → Restore, automatic opt-in, revoked/expired credentials, and disconnect during upload. Confirm old remote data survives Connect and automatic backup cannot overwrite it before a user decision.
+Automated tests cover first-emission suppression, repeat fingerprints, safe state defaults and HTTP 401 recognition. Live testing still needs your Cloud project. On a configured device, check: canceled consent, missing/outdated Play services, wrong signing SHA-1/developer error, offline operation, backup/restore round trip with stickers, thumbnails and editor data, reinstall → Connect → Restore, automatic opt-in, revoked/expired credentials, and disconnect during upload. Confirm old remote data survives Connect and automatic backup cannot overwrite it before a user decision.
 
 ## Official references
 
