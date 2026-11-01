@@ -298,19 +298,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     val json = JSONObject(data)
                     _editor.value = _editor.value?.copy(
                         cutoutEnabled = json.optBoolean("cutout", false),
-                        style = StickerRenderer.Style(
-                            outline = json.optInt("outline", 3),
-                            outlineColor = StickerRenderer.OutlineColor.valueOf(json.getString("outlineColor")),
-                            caption = json.optString("caption"),
-                            captionPosition = StickerRenderer.CaptionPosition.valueOf(json.getString("captionPosition")),
-                            captionColor = StickerRenderer.CaptionColor.valueOf(json.getString("captionColor")),
-                            captionFont = json.optString("captionFont", "sans"),
-                            captionSize = json.optInt("captionSize", 40),
-                            captionBackground = json.optInt("captionBackground", android.graphics.Color.TRANSPARENT),
-                            captionTextColor = if (json.has("captionTextColor") && !json.isNull("captionTextColor")) json.optInt("captionTextColor") else null,
-                            captionBold = json.optBoolean("captionBold", false),
-                            roundedCorners = json.optBoolean("roundedCorners", false),
-                        ),
+                        style = com.stikr.app.render.StickerStyleJson.read(json),
                     )
                 } catch (_: Exception) { /* Older or incomplete editor settings use defaults. */ }
                 loadImage(Uri.fromFile(file))
@@ -481,6 +469,47 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Reuses the pack's stored originals so repeated pack edits do not flatten prior edits. */
+    fun applyPackStyle(onSaved: () -> Unit) {
+        val state = _editor.value ?: return
+        if (!state.ready) return
+        _editor.value = state.copy(saving = true)
+        viewModelScope.launch {
+            var saved = 0
+            var failed = 0
+            try {
+                val pack = storage { repo.getPack(state.packId) } ?: error("Pack missing")
+                for (name in pack.stickers) {
+                    try {
+                        val sourceFile = storage { repo.sourceFile(pack.id, name) ?: repo.stickerFile(pack.id, name) } ?: error("Photo missing")
+                        val source = withContext(Dispatchers.IO) { ImageLoader.load(getApplication(), Uri.fromFile(sourceFile)) } ?: error("Photo unreadable")
+                        var subject = source
+                        try {
+                            if (state.cutoutEnabled) {
+                                val cut = withContext(Dispatchers.Default) { subjectCutout(source) }
+                                if (cut != null) subject = cut
+                                else error("Cutout unavailable")
+                            }
+                            val bytes = encodeSticker(subject, state.style)
+                            val original = encodeSource(source)
+                            val data = editorData(state)
+                            check(storage { repo.replaceSticker(pack.id, name, bytes, source = original, editData = data) } != null)
+                            saved++
+                        } finally {
+                            if (subject !== source && !subject.isRecycled) subject.recycle()
+                            if (!source.isRecycled) source.recycle()
+                        }
+                    } catch (e: CancellationException) { throw e }
+                    catch (_: Exception) { failed++ }
+                }
+                refresh()
+                if (failed == 0) { closeEditor(); notify("Updated $saved stickers"); onSaved() }
+                else { _editor.value = _editor.value?.copy(saving = false); notify("Updated $saved stickers; $failed could not be updated. You can retry.") }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { _editor.value = _editor.value?.copy(saving = false); notify("Could not update this pack. Your edits are kept.") }
+        }
+    }
+
     /** Saves the editor's sticker into a fresh pack named after the current one. */
     fun saveStickerToNewPack(onSaved: (StickerPack) -> Unit) {
         val state = _editor.value ?: return
@@ -534,7 +563,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun startBatch(title: String, author: String, uris: List<Uri>, removeBackground: Boolean = false) {
         if (uris.isEmpty() || _batch.value != null || batchJob?.isActive == true) return
-        val safeTitle = title.trim().ifEmpty { "My stickers" }
+        val safeTitle = title.trim().ifEmpty { com.stikr.app.data.PackNames.random() }
         val safeAuthor = author.trim().ifEmpty { PackRepository.DEFAULT_AUTHOR }
         _batch.value = BatchState(
             title = safeTitle,
@@ -634,20 +663,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * Renders the subject as a 512x512 sticker and encodes it as a WebP.
      * A recycled subject or a failed encode throws; callers keep the editor.
      */
-    private fun editorData(state: EditorState): String = JSONObject()
-        .put("cutout", state.cutoutEnabled)
-        .put("outline", state.style.outline)
-        .put("outlineColor", state.style.outlineColor.name)
-        .put("caption", state.style.caption)
-        .put("captionPosition", state.style.captionPosition.name)
-        .put("captionColor", state.style.captionColor.name)
-        .put("captionFont", state.style.captionFont)
-        .put("captionSize", state.style.captionSize)
-        .put("captionBackground", state.style.captionBackground)
-        .put("captionTextColor", state.style.captionTextColor ?: JSONObject.NULL)
-        .put("captionBold", state.style.captionBold)
-        .put("roundedCorners", state.style.roundedCorners)
-        .toString()
+    private fun editorData(state: EditorState): String = com.stikr.app.render.StickerStyleJson.write(
+        state.style, JSONObject().put("cutout", state.cutoutEnabled),
+    ).toString()
 
     /** Two intentionally generic, deterministic vector typographic starters. */
     private fun starterStickerBytes(): List<ByteArray> = listOf("HELLO!", "NICE ONE").mapIndexed { index, label ->
