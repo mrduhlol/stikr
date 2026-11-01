@@ -372,7 +372,7 @@ fun CreateBatchDialog(
     onConfirm: (title: String, author: String, removeBackground: Boolean) -> Unit,
 ) {
     var removeBackground by rememberSaveable { mutableStateOf(false) }
-    var title by rememberSaveable { mutableStateOf("My stickers") }
+    var title by rememberSaveable { mutableStateOf("") }
     var author by rememberSaveable { mutableStateOf(PackRepository.DEFAULT_AUTHOR) }
 
     NeoDialog(
@@ -380,7 +380,7 @@ fun CreateBatchDialog(
         title = "A new collection.",
         body = {
             Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                Text("Choose a name. Then pick your photos.", style = MaterialTheme.typography.bodyMedium, color = Neo.palette.muted)
+                Text("Name your pack, or leave it blank for a surprise.", style = MaterialTheme.typography.bodyMedium, color = Neo.palette.muted)
                 NeoTextField(
                     value = title,
                     onValueChange = { title = it },
@@ -415,7 +415,7 @@ fun CreateBatchDialog(
                 text = "Pick photos",
                 onClick = {
                     onConfirm(
-                        title.trim().ifEmpty { "My stickers" },
+                        title.trim(),
                         author.trim().ifEmpty { PackRepository.DEFAULT_AUTHOR },
                         removeBackground,
                     )
