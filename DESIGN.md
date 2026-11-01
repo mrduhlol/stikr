@@ -59,7 +59,7 @@ Creation controls have prominent labels and short secondary explanations.
 ## Layout
 Two pack columns. Creation actions precede Your packs. Single stickers have a
 horizontal row, then a thin divider, then normal packs. No bottom navigation,
-filters or column/settings control. The header has a 52dp approved S logo, a sound toggle and a profile entry for optional Google backup. A round creation action appears only after
+filters or column/settings control. The header has a 52dp approved S logo, a sound toggle and a folder entry for local backup export and restore. A round creation action appears only after
 the creation row scrolls away. Pack detail owns the WhatsApp slider at bottom.
 
 ## Elevation & Depth
