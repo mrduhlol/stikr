@@ -116,7 +116,8 @@ fun EditorScreen(
     BackHandler(onBack = leave)
 
     Scaffold(
-        containerColor = palette.paper,
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        modifier = Modifier.collectionBackground(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             BottomBar(
@@ -274,7 +275,7 @@ private fun PreviewCard(state: EditorState, onPickPhoto: () -> Unit) {
                             .fillMaxWidth(0.8f)
                             .neoFrame(
                                 fill = palette.card,
-                                borderColor = palette.ink,
+                                borderColor = palette.muted.copy(alpha = 0.22f),
                                 shadowColor = palette.shadow,
                                 shape = NeoShapes.control,
                             )
@@ -334,7 +335,7 @@ private fun CutoutCard(state: EditorState, onCutout: (Boolean) -> Unit) {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             NeoStepLabel(1, "Cut-out", modifier = Modifier.weight(1f))
-            if (state.cutoutFailed) NeoTag("unavailable", fill = palette.pink, rotation = 2f)
+            if (state.cutoutFailed) NeoTag("unavailable", fill = palette.card)
         }
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -514,7 +515,7 @@ private fun BottomBar(
             Modifier
                 .fillMaxWidth()
                 .height(NeoDimens.border)
-                .background(palette.ink),
+                .background(palette.muted.copy(alpha = 0.18f)),
         )
         Box(
             modifier = Modifier
