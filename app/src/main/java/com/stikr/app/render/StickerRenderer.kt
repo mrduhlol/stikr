@@ -37,7 +37,7 @@ object StickerRenderer {
     }
 
     data class Style(
-        val outline: Int = 3,
+        val outline: Int = 0,
         val outlineColor: OutlineColor = OutlineColor.WHITE,
         val caption: String = "",
         val captionPosition: CaptionPosition = CaptionPosition.BOTTOM,
@@ -48,6 +48,14 @@ object StickerRenderer {
         val captionBackground: Int = android.graphics.Color.TRANSPARENT,
         val captionTextColor: Int? = null,
         val captionBold: Boolean = false,
+        val captionItalic: Boolean = false,
+        val captionUnderline: Boolean = false,
+        val captionStrike: Boolean = false,
+        val captionX: Float? = null,
+        val captionY: Float? = null,
+        val captionRotation: Float = 0f,
+        val captionAlign: String = "center",
+        val extraCaptions: List<Style> = emptyList(),
     )
 
     fun render(subject: Bitmap, style: Style): Bitmap {
@@ -55,6 +63,7 @@ object StickerRenderer {
         val canvas = Canvas(out)
         drawSubject(canvas, subject, style)
         drawCaption(canvas, style)
+        style.extraCaptions.take(19).forEach { drawCaption(canvas, it) }
         return out
     }
 
@@ -84,6 +93,7 @@ object StickerRenderer {
             }
             val out = requireNotNull(layer).copy(Bitmap.Config.ARGB_8888, true)
             drawCaption(Canvas(out), style)
+            style.extraCaptions.take(19).forEach { drawCaption(Canvas(out), it) }
             return out
         }
 
@@ -201,44 +211,46 @@ object StickerRenderer {
     }
 
     private fun drawCaption(canvas: Canvas, style: Style) {
-        var text: CharSequence = style.caption.trim()
-        if (text.isEmpty()) return
-
-        val maxWidth = SIZE - 2f * 22f
+        val text = style.caption.take(500)
+        if (text.isBlank()) return
+        val free = style.captionX != null || style.captionY != null
         val paint = TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
-            textAlign = Paint.Align.CENTER
-            typeface = StickerTypography.typeface(style.captionFont, style.captionBold)
+            typeface = StickerTypography.typeface(style.captionFont, style.captionBold, style.captionItalic)
+            textSize = style.captionSize.coerceIn(if (free) 8 else 16, if (free) 320 else 170).toFloat()
+            isUnderlineText = style.captionUnderline
+            isStrikeThruText = style.captionStrike
         }
-        var textSize = style.captionSize.coerceIn(16, 170).toFloat()
-        while (textSize > 16f) {
-            paint.textSize = textSize
-            if (paint.measureText(text.toString()) <= maxWidth) break
-            textSize -= 2f
-        }
-        paint.textSize = textSize
-        if (paint.measureText(text.toString()) > maxWidth) {
-            text = TextUtils.ellipsize(text, paint, maxWidth, TextUtils.TruncateAt.END)
-        }
-
-        val baseline = when (style.captionPosition) {
-            CaptionPosition.TOP -> textSize + 14f
-            CaptionPosition.BOTTOM -> SIZE - 16f
-        }
-
+        val lines = text.split('\n')
+        if (!free) while (paint.textSize > 16f && lines.maxOf { paint.measureText(it) } > SIZE - 44f) paint.textSize -= 2f
+        val width = lines.maxOf { paint.measureText(it) }
+        val fm = paint.fontMetrics
+        val lineHeight = (fm.descent - fm.ascent) * 1.1f
+        val height = lineHeight * lines.size
+        val defaultY = if (style.captionPosition == CaptionPosition.TOP) (height / 2f + 14f) / SIZE else (SIZE - 16f - height / 2f) / SIZE
+        val x = (style.captionX ?: .5f).let { if (it.isFinite()) it.coerceIn(0f, 1f) else .5f } * SIZE
+        val y = (style.captionY ?: defaultY).let { if (it.isFinite()) it.coerceIn(0f, 1f) else .78f } * SIZE
+        canvas.save()
+        canvas.translate(x, y)
+        canvas.rotate(style.captionRotation.takeIf { it.isFinite() } ?: 0f)
         if (android.graphics.Color.alpha(style.captionBackground) > 0) {
-            val halfWidth = paint.measureText(text.toString()) / 2 + 10f
-            canvas.drawRect(SIZE / 2f - halfWidth, baseline + paint.fontMetrics.ascent - 6f,
-                SIZE / 2f + halfWidth, baseline + paint.fontMetrics.descent + 6f,
-                Paint().apply { color = style.captionBackground })
+            val padX = paint.textSize * .18f
+            val padY = paint.textSize * .12f
+            canvas.drawRoundRect(-width/2 - padX, -height/2 - padY, width/2 + padX, height/2 + padY,
+                paint.textSize * .1f, paint.textSize * .1f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = style.captionBackground })
         }
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = textSize * 0.16f
-        paint.strokeJoin = Paint.Join.ROUND
-        paint.color = style.captionColor.stroke
-        canvas.drawText(text.toString(), SIZE / 2f, baseline, paint)
-
-        paint.style = Paint.Style.FILL
-        paint.color = style.captionTextColor ?: style.captionColor.fill
-        canvas.drawText(text.toString(), SIZE / 2f, baseline, paint)
+        paint.textAlign = when (style.captionAlign) { "left" -> Paint.Align.LEFT; "right" -> Paint.Align.RIGHT; else -> Paint.Align.CENTER }
+        val tx = when (paint.textAlign) { Paint.Align.LEFT -> -width/2; Paint.Align.RIGHT -> width/2; else -> 0f }
+        lines.forEachIndexed { index, line ->
+            val baseline = -height / 2f + index * lineHeight + (lineHeight - fm.descent - fm.ascent) / 2f
+            // Preserve the original outlined caption appearance for legacy edits only.
+            if (!free) {
+                paint.style = Paint.Style.STROKE; paint.strokeWidth = paint.textSize * .16f
+                paint.strokeJoin = Paint.Join.ROUND; paint.color = style.captionColor.stroke
+                canvas.drawText(line, tx, baseline, paint)
+            }
+            paint.style = Paint.Style.FILL; paint.color = style.captionTextColor ?: style.captionColor.fill
+            canvas.drawText(line, tx, baseline, paint)
+        }
+        canvas.restore()
     }
 }
