@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -90,7 +91,10 @@ fun EditorScreen(
     packFull: Boolean,
     onSaveNew: () -> Unit,
     onBack: () -> Unit,
+    onSaveAndExport: (() -> Unit)? = null,
+    bulkEdit: Boolean = false,
 ) {
+    var selectedText by rememberSaveable { mutableIntStateOf(0) }
     val context = androidx.compose.ui.platform.LocalContext.current
     remember(context) { com.stikr.app.render.StickerTypography.initialize(context); true }
     val palette = Neo.palette
@@ -126,6 +130,8 @@ fun EditorScreen(
                 onSave = onSave,
                 onSaveNew = onSaveNew,
                 packFull = packFull,
+                onSaveAndExport = onSaveAndExport,
+                bulkEdit = bulkEdit,
             )
         },
     ) { padding ->
@@ -138,9 +144,10 @@ fun EditorScreen(
                 .padding(start = NeoDimens.gutter, end = NeoDimens.gutter + NeoDimens.shadow, top = 8.dp),
         ) {
             TopBar(packName = packName, editing = state.editingFileName != null, onBack = leave)
+            if (bulkEdit) Text("Pack edit · applies this look and text to every sticker. Stored originals are kept.", color = palette.muted, style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(18.dp))
 
-            PreviewCard(state = state, onPickPhoto = pickPhoto)
+            PreviewCard(state = state, onPickPhoto = pickPhoto, selected = selectedText, onStyle = onStyle)
             Spacer(Modifier.height(24.dp))
 
             CutoutCard(state = state, onCutout = onCutout)
@@ -149,7 +156,7 @@ fun EditorScreen(
             OutlineCard(state = state, onStyle = onStyle)
             Spacer(Modifier.height(NeoDimens.gap + NeoDimens.shadow / 2))
 
-            CaptionCard(state = state, onStyle = onStyle)
+            StickerTextPanel(state.style, state.source != null && !state.saving, selectedText, { selectedText = it }, onStyle)
             Spacer(Modifier.height(32.dp))
         }
     }
@@ -203,7 +210,7 @@ private fun TopBar(packName: String, editing: Boolean, onBack: () -> Unit) {
 }
 
 @Composable
-private fun PreviewCard(state: EditorState, onPickPhoto: () -> Unit) {
+private fun PreviewCard(state: EditorState, onPickPhoto: () -> Unit, selected: Int, onStyle: (StickerRenderer.Style) -> Unit) {
     val palette = Neo.palette
     NeoCard(
         modifier = Modifier.fillMaxWidth(),
@@ -214,6 +221,7 @@ private fun PreviewCard(state: EditorState, onPickPhoto: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
+                .stickerTextGestures(state.style, selected, state.ready, onStyle)
                 .clip(NeoShapes.control),
             contentAlignment = Alignment.Center,
         ) {
@@ -229,8 +237,7 @@ private fun PreviewCard(state: EditorState, onPickPhoto: () -> Unit) {
                     bitmap = image,
                     contentDescription = "Sticker preview",
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp),
+                        .fillMaxSize(),
                     contentScale = ContentScale.Fit,
                 )
             }
@@ -487,6 +494,8 @@ private fun BottomBar(
     onSave: () -> Unit,
     onSaveNew: () -> Unit,
     packFull: Boolean,
+    onSaveAndExport: (() -> Unit)?,
+    bulkEdit: Boolean,
 ) {
     val palette = Neo.palette
     Column(
@@ -535,8 +544,15 @@ private fun BottomBar(
                     )
                 }
 
+                onSaveAndExport != null -> Column {
+                    SlideExport(enabled = state.ready, busy = state.saving, onConfirm = onSaveAndExport)
+                    Spacer(Modifier.height(8.dp))
+                    NeoOutlinedButton("Save only", onSave, enabled = state.ready, modifier = Modifier.fillMaxWidth())
+                }
+
                 else -> NeoButton(
                     text = when {
+                        bulkEdit -> "Apply to entire pack"
                         state.editingFileName != null -> "Save changes"
                         packName.isNotEmpty() -> "Add to “$packName”"
                         else -> "Add to pack"
