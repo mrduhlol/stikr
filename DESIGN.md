@@ -2,12 +2,12 @@
 name: stikr
 description: Little collections of photos and words, ready for WhatsApp.
 colors:
-  background: "#201824"
-  surface: "#302637"
-  foreground: "#FFF9FF"
-  muted: "#C4B5CF"
-  primary: "#D5F277"
-  on-primary: "#263113"
+  background: "#0C0E0D"
+  surface: "#20251F"
+  foreground: "#EEEDE7"
+  muted: "#B8BFB0"
+  primary: "#303B29"
+  on-primary: "#E1EBCD"
   violet: "#765384"
   olive: "#647342"
   card-default: "#E5D6C8"
@@ -41,22 +41,25 @@ components:
 ## Overview
 Native Android Operate surface. The approved mockup replaces the older
 neo-brutalist print world. Preserve the approved black/lime S logo with its large folded corner and collectible
-card details. Reference: docs/mockups/stikr-redesign-preview.html.
+card details. Reference: docs/mockups/dark-onboarding-preview.html.
 
 ## Colors
-Dark plum with diffuse violet above and olive below. Color the pack frame and
+Near-black graphite with restrained forest and olive gradients across every screen.
+Controls use dark inset fills, quiet olive edges, cream text and native switches.
+Avoid bright lime action blocks and white outlines. Color the sharp pack frame and
 LVL tab from the thumbnail; use exactly the same tint on both. Card text is dark.
-Lime marks creation and slide confirmation; secondary actions use plum surfaces.
+The WhatsApp slider has a subtle liquid front tied to drag progress, with reduced-motion support.
 
 ## Typography
 Use Android sans for interface text. Headings are sentence case, semibold.
-Keep Anton, serif and monospace available for user-authored sticker/cover text.
+Offer Sans, Serif, Mono, Anton, Caveat, Pacifico and Oswald for user-authored text.
+Sticker caption size reaches 170; cover text reaches 400 pixels on the 1080 × 1350 output.
 Creation controls have prominent labels and short secondary explanations.
 
 ## Layout
 Two pack columns. Creation actions precede Your packs. Single stickers have a
 horizontal row, then a thin divider, then normal packs. No bottom navigation,
-filters or column/settings control. The top-right sound toggle is the only header action. A round creation action appears only after
+filters or column/settings control. The header has a 52dp approved S logo, a sound toggle and a profile entry for optional Google backup. A round creation action appears only after
 the creation row scrolls away. Pack detail owns the WhatsApp slider at bottom.
 
 ## Elevation & Depth
