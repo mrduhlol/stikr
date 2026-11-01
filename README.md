@@ -4,7 +4,7 @@
 
 Turn a photo into a sticker on your phone. Cut out the subject, add an outline
 and a caption, then import a pack into WhatsApp or share a sticker anywhere.
-No account, no upload, no watermark.
+No required account or watermark. Optional Google Drive backup keeps a copy of your collections.
 
 ![Android 8.0+](docs/site/assets/badge-android.svg)
 ![On device](docs/site/assets/badge-local.svg)
@@ -24,7 +24,7 @@ Debug APKs are for local development and troubleshooting and are not distributed
 here. They have the same sticker features, with debugging enabled and extra
 tooling. If you previously installed a debug build, Android may require you to
 uninstall it before installing the normal app because the signing keys differ.
-Uninstalling deletes local packs.
+Uninstalling deletes local packs. A completed optional Drive backup can be restored after reinstalling and connecting the same account.
 
 ---
 
@@ -35,13 +35,13 @@ Uninstalling deletes local packs.
 | **Cut out the subject** | Auto cut-out is off by default. Turn it on in the editor; ML Kit subject segmentation runs on device. Google Play services fetches the model once. If cut-out is unavailable, keep the full photo. |
 | **Add the sticker outline** | White or ink, with adjustable thickness. |
 | **Say something** | Optional caption in cream, ink, butter, or cherry, at the top or bottom. |
-| **Take the tour** | Three short pages on the first launch: photos in, stickers out; pick, cut, dress up; packs, ready for WhatsApp. The **info (ⓘ)** button in the home header replays them. |
+| **Take the tour** | Three short pages on the first launch: photos in, stickers out; pick, cut, dress up; packs, ready for WhatsApp. The tour introduces editing and WhatsApp import. |
 | **Keep a pack** | Create, rename, and delete packs. Select up to 30 photos together, then tap a sticker and choose **Edit sticker** to change it in place. Add and delete stickers. A pack holds at most 30 stickers, WhatsApp's limit, so a full pack offers **Save into a new pack**. |
 | **Make a batch** | Pick as many photos as you like. stikr makes a sticker from each one and splits the run into packs of at most 30, with a title and an author you set once. |
 | **Send it to WhatsApp** | Import a pack of 3–30 stickers through the standard sticker-pack contract. Works with WhatsApp and WhatsApp Business. |
 | **Share one anywhere** | Send a sticker as a PNG through Android's normal share sheet. |
-| **Keep it local** | No sign-in, uploads, analytics, or telemetry. Cut-out requires Google Play services; everything else works fully offline. |
-| **Choose your appearance** | Open **Settings** at the top right for **Light**, **Dark**, **AMOLED** (pure black), or **System**. Your choice is remembered. |
+| **Keep it local** | No required sign-in, analytics, or telemetry. Editing works offline; cut-out requires Google Play services. Optional Google Drive backup uploads only after connection and a backup action or automatic-backup opt-in. |
+| **Keep your collections** | The profile icon opens optional Google connection, Back up now, Restore and Disconnect. See the [Google setup steps](docs/google-backup-setup.md); Cloud registration is required before connection works. |
 
 Static stickers only. A tray-icon picker, multiple subjects,
 and emoji suggestions are not shipped. Photos come from the system photo picker;
@@ -57,7 +57,7 @@ stikr does not ask for storage permission.
 Every release uses the same signing key, `keystore/release.p12`, so the next
 release installs over the one you have. If you installed a debug build,
 uninstall it first. Android rejects updates with a different signature.
-Uninstalling removes local packs, so share stickers you want to keep first.
+Uninstalling removes local packs. Complete a Google Drive backup first if you want to restore the library after reinstalling.
 
 [Installation and update details](https://mrduhlol.github.io/stikr/install.html)
 
@@ -89,8 +89,8 @@ pack's publisher.
 
 ## **Your little collections**
 
-The app uses a dark plum background with balanced violet and olive light,
-lime actions, and a two-column collection of sharp pack cards. Each card uses
+The app uses near-black graphite backgrounds with restrained forest gradients,
+dark olive controls, and a two-column collection of sharp pack cards. Each card uses
 its thumbnail's colors, a flush striped LVL tab, its creation checkpoint and
 persistent numeric ID. The approved black/lime S with the large folded corner is the launcher icon.
 
@@ -108,12 +108,12 @@ and text color. The same menu edits the title and author.
 
 Sticker outlines default to **3 px**. **Bleeding bend** rounds photo corners
 before drawing the outline and defaults off. Caption controls include font,
-size, bold, background, and color. A full slide requests WhatsApp import; a
+size up to 170, bold, background, and color. Cover text reaches 400, with Sans, Serif, Mono, Anton, Caveat, Pacifico and Oswald available offline. A full slide requests WhatsApp import; a
 front/back 360° card celebration plays only after WhatsApp confirms success.
 Reduced-motion settings suppress the spin and particles. Short click, slide,
 and success sounds follow the top-right mute toggle and the phone’s silent mode.
 
-The approved [interactive design reference](docs/mockups/stikr-redesign-preview.html)
+The approved [interactive design reference](docs/mockups/dark-onboarding-preview.html)
 and [design tokens](DESIGN.md) document the intended layout and behavior.
 
 ## **Build it**
