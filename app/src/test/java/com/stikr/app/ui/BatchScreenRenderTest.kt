@@ -49,7 +49,7 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
     @Test
     fun batchDialogLight() {
         showCreateDialog(dark = false)
-        compose.onNodeWithText("My stickers").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Pack title").assertIsDisplayed()
         compose.onNodeWithText("stikr").assertIsDisplayed()
         captureDialog("batch-dialog-light")
     }
@@ -57,7 +57,7 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
     @Test
     fun batchDialogDark() {
         showCreateDialog(dark = true)
-        compose.onNodeWithText("My stickers").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Pack title").assertIsDisplayed()
         compose.onNodeWithText("stikr").assertIsDisplayed()
         captureDialog("batch-dialog-dark")
     }
@@ -84,6 +84,7 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
             }
         }
         settle()
+        compose.onNodeWithContentDescription("Pack title").performTextInput("My stickers")
         compose.onNodeWithText("Pick photos", ignoreCase = true).performClick()
         compose.waitForIdle()
         assertEquals("My stickers", title)
@@ -103,11 +104,11 @@ class BatchScreenRenderTest : ScreenRenderHarness() {
             }
         }
         settle()
-        compose.onNodeWithText("My stickers").performTextClearance()
+        compose.onNodeWithContentDescription("Pack title").performTextClearance()
         compose.onNodeWithText("stikr").performTextClearance()
         compose.onNodeWithText("Pick photos", ignoreCase = true).performClick()
         compose.waitForIdle()
-        assertEquals("My stickers", title)
+        assertEquals("", title)
         assertEquals(PackRepository.DEFAULT_AUTHOR, author)
     }
 
