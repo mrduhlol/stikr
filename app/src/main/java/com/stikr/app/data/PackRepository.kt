@@ -232,6 +232,7 @@ class PackRepository(private val root: File) {
             val rollback = File(staging, "rollback").apply { mkdirs() }
             val movedOld = mutableListOf<Pair<File, File>>()
             val movedNew = mutableListOf<File>()
+            var rollbackComplete = true
             try {
                 install.forEach { pack ->
                     val stagedDir = File(staging, "new-${pack.id}").apply { mkdirs() }
@@ -264,12 +265,15 @@ class PackRepository(private val root: File) {
             } catch (failure: Exception) {
                 movedNew.asReversed().forEach { runCatching { it.deleteRecursively() } }
                 movedOld.asReversed().forEach { (target, backup) ->
-                    if (backup.exists()) runCatching { Files.move(backup.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE) }
+                    if (backup.exists()) runCatching {
+                        Files.move(backup.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE)
+                    }.onFailure { rollbackComplete = false }
                 }
                 metadata.clear()
                 throw failure
             } finally {
-                staging.deleteRecursively()
+                // Keep recovery files if the filesystem also rejected rollback.
+                if (rollbackComplete) staging.deleteRecursively()
             }
         }
     }
