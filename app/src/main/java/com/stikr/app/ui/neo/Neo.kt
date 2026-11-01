@@ -4,6 +4,11 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -192,6 +197,10 @@ fun NeoButton(
                 shadowOffset = if (enabled) shadow else 0.dp,
                 press = press,
             )
+            .graphicsLayer { scaleX = 1f - press.value * .02f; scaleY = scaleX }
+            .clip(shape)
+            .background(Brush.linearGradient(listOf(face, if (fill == palette.cherry) Color(0xFF232B20) else face)))
+            .border(1.dp, palette.edgeFor(face), shape)
             .clickable(
                 interactionSource = interaction,
                 indication = null,
@@ -359,7 +368,7 @@ fun NeoSegmented(
                     Modifier
                         .width(NeoDimens.border)
                         .fillMaxHeight()
-                        .background(palette.ink),
+                        .background(palette.edgeFor(palette.card)),
                 )
             }
             val selected = index == selectedIndex
@@ -397,69 +406,21 @@ fun NeoSwitch(
     enabled: Boolean = true,
     contentDescription: String? = null,
 ) {
-    val palette = Neo.palette
-    val haptics = rememberHaptics()
-    val position by animateFloatAsState(
-        targetValue = if (checked) 1f else 0f,
-        animationSpec = tween(NeoMotion.release),
-        label = "neo-switch",
+    androidx.compose.material3.Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        enabled = enabled,
+        modifier = modifier.heightIn(min = 48.dp).then(
+            if (contentDescription != null) Modifier.semantics { this.contentDescription = contentDescription } else Modifier,
+        ),
+        colors = androidx.compose.material3.SwitchDefaults.colors(
+            checkedThumbColor = Color(0xFFD3DFB6),
+            checkedTrackColor = Color(0xFF3A492A),
+            uncheckedThumbColor = Color(0xFFA4AC9B),
+            uncheckedTrackColor = Color(0xFF22291E),
+            uncheckedBorderColor = Color(0xFF536046),
+        ),
     )
-    val trackWidth = 72.dp
-    val thumb = 26.dp
-    val inset = 5.dp
-    val travel = trackWidth - thumb - inset * 2
-    val track = if (checked) palette.cherry else palette.creamDim
-
-    Box(
-        modifier = modifier
-            .heightIn(min = NeoDimens.touch)
-            .toggleable(
-                value = checked,
-                enabled = enabled,
-                role = Role.Switch,
-                onValueChange = {
-                    haptics(NeoHaptic.Tap)
-                    onCheckedChange(it)
-                },
-            )
-            .then(if (contentDescription != null) Modifier.semantics { this.contentDescription = contentDescription } else Modifier)
-            .alpha(if (enabled) 1f else 0.45f),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(width = trackWidth, height = thumb + inset * 2)
-                .neoFrame(
-                    fill = track,
-                    borderColor = palette.ink,
-                    shadowColor = palette.shadow,
-                    shape = NeoShapes.control,
-                    shadowOffset = NeoDimens.shadowSmall,
-                ),
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            Text(
-                text = if (checked) "ON" else "OFF",
-                style = MaterialTheme.typography.labelSmall,
-                color = if (checked) palette.onCherry else palette.ink,
-                modifier = Modifier
-                    .align(if (checked) Alignment.CenterStart else Alignment.CenterEnd)
-                    .padding(horizontal = 9.dp),
-            )
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset(((inset + travel * position).toPx()).roundToInt(), 0) }
-                    .size(thumb)
-                    .neoFrame(
-                        fill = palette.card,
-                        borderColor = palette.ink,
-                        shadowColor = palette.shadow,
-                        shape = NeoShapes.tag,
-                        shadowOffset = 0.dp,
-                    ),
-            )
-        }
-    }
 }
 
 /** A colour swatch: the selected one sits sunk into its shadow, checked. */
@@ -672,7 +633,7 @@ fun NeoSectionHeader(
             Modifier
                 .fillMaxWidth()
                 .height(NeoDimens.border)
-                .background(palette.ink),
+                .background(palette.edgeFor(palette.card)),
         )
     }
 }
@@ -801,18 +762,18 @@ fun NeoDialog(
                     .fillMaxWidth()
                     .neoFrame(
                         fill = palette.card,
-                        borderColor = palette.ink,
+                        borderColor = palette.edgeFor(palette.card),
                         shadowColor = palette.shadow,
-                        shape = NeoShapes.card,
+                        shape = RoundedCornerShape(22.dp),
                         shadowOffset = NeoDimens.shadowLarge,
                         clipContent = true,
                     ),
             ) {
-                if (kicker != null) {
+                if (!kicker.isNullOrBlank()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(band)
+                            .background(palette.card)
                             .padding(horizontal = 20.dp, vertical = 11.dp),
                     ) {
                         Text(
@@ -825,7 +786,7 @@ fun NeoDialog(
                         Modifier
                             .fillMaxWidth()
                             .height(NeoDimens.border)
-                            .background(palette.ink),
+                            .background(palette.edgeFor(palette.card)),
                     )
                 }
                 Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 22.dp)) {
@@ -904,8 +865,8 @@ fun NeoTextField(
                         .fillMaxWidth()
                         .heightIn(min = 52.dp)
                         .neoFrame(
-                            fill = if (enabled) palette.card else palette.creamDim,
-                            borderColor = if (enabled) palette.ink else palette.ink.copy(alpha = 0.35f),
+                            fill = if (enabled) Color(0xFF10160F) else palette.creamDim,
+                            borderColor = if (focused) Color(0xFF9AAA7C) else Color(0xFF38422F),
                             shadowColor = palette.purple,
                             shape = NeoShapes.control,
                             shadowOffset = if (focused) NeoDimens.shadowSmall else 0.dp,
