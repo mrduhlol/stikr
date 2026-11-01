@@ -77,8 +77,9 @@ persistent numeric ID, sticker count out of 30, title, and a boxed centered
 WhatsApp vector. Three-dot menu: Add thumbnail, Rename Title, Rename author.
 Singles long-press: Add to WhatsApp, Delete with confirmation. Export requires
 a full slide; cancellation returns the handle. Only confirmed WhatsApp success
-triggers an upright vertical-axis 360-degree front/back turn, Pack added heading
-above the card, then confetti. Reduced motion removes rotation and particles.
+triggers a compact card rising from below with a bottom-hinged unfolding entrance.
+Keep Pack added above and a clear success check below. Use no particle burst.
+Reduced motion shows the final state immediately.
 
 ## Do's and Don'ts
 Keep exact card/tab color alignment. Use real vector arrows and WhatsApp mark.
