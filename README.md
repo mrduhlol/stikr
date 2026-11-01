@@ -10,6 +10,8 @@
   </a>
 </p>
 
+<p align="center"><a href="https://mrduhlol.github.io/stikr/">Website and live demo</a></p>
+
 <p align="center">Personal stickers, made for your conversations.<br>Free · Android 8.0+ · No account required</p>
 
 ## Features
