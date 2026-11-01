@@ -2,7 +2,7 @@ package com.stikr.app.ui
 
 import android.graphics.BitmapFactory
 import android.provider.Settings
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.*
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -145,14 +145,12 @@ fun SlideExport(enabled: Boolean = true, busy: Boolean = false, onConfirm: () ->
     }
     val view = LocalView.current
     var dragging by remember { mutableStateOf(false) }
-    var phase by remember { mutableFloatStateOf(0f) }
     var tick by remember { mutableIntStateOf(0) }
-    LaunchedEffect(dragging, reducedMotion) {
-        if (dragging && !reducedMotion) {
-            val start = withFrameNanos { it }
-            while (true) withFrameNanos { phase = (it-start)/1_000_000_000f * 4f }
-        }
-    }
+    val phase = if (dragging && !reducedMotion) {
+        val waves = rememberInfiniteTransition(label="slider water")
+        val value by waves.animateFloat(0f, (PI*2).toFloat(), infiniteRepeatable(tween(1600,easing=LinearEasing)),label="refraction")
+        value
+    } else 0f
     var width by remember { mutableFloatStateOf(0f) }
     var position by remember { mutableFloatStateOf(0f) }
     val knob = with(LocalDensity.current) { 52.dp.toPx() }
