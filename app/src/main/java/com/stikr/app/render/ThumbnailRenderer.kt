@@ -64,7 +64,7 @@ object ThumbnailRenderer {
         val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
             color = style.color
             typeface = StickerTypography.typeface(style.font, style.bold, style.italic)
-            textSize = style.size.coerceIn(32, 240).toFloat()
+            textSize = style.size.coerceIn(32, 400).toFloat()
         }
         fun layout() = StaticLayout.Builder.obtain(style.text.take(500), 0, style.text.take(500).length, paint, WIDTH - 144)
             .setAlignment(Layout.Alignment.ALIGN_CENTER).setIncludePad(false).setLineSpacing(0f, 1.08f).build()
