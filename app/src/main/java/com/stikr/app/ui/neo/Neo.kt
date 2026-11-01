@@ -514,12 +514,12 @@ private fun NeoSliderThumb(interaction: MutableInteractionSource) {
     val press = rememberPressProgress(interaction)
     Box(
         modifier = Modifier
-            .size(width = 24.dp, height = 36.dp)
+            .size(24.dp)
             .neoFrame(
-                fill = palette.cherry,
+                fill = palette.green,
                 borderColor = palette.edgeFor(palette.card),
                 shadowColor = palette.shadow,
-                shape = NeoShapes.tag,
+                shape = RoundedCornerShape(12.dp),
                 shadowOffset = NeoDimens.shadowSmall,
                 press = press,
             ),
@@ -535,23 +535,18 @@ private fun NeoSliderTrack(state: SliderState) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(16.dp)
+            .height(6.dp)
             .neoFrame(
                 fill = palette.card,
                 borderColor = palette.edgeFor(palette.card),
                 shadowColor = palette.shadow,
-                shape = NeoShapes.tag,
+                shape = RoundedCornerShape(3.dp),
                 shadowOffset = 0.dp,
                 clipContent = true,
             )
             .drawBehind {
                 val range = state.valueRange.endInclusive - state.valueRange.start
                 val fraction = if (range > 0f) ((state.value - state.valueRange.start) / range).coerceIn(0f, 1f) else 0f
-                val rule = 2.dp.toPx()
-                for (i in 1..7) {
-                    val x = size.width * i / 8f
-                    drawRect(tick, Offset(x - rule / 2f, size.height * 0.3f), Size(rule, size.height * 0.4f))
-                }
                 drawRect(ink, size = Size(size.width * fraction, size.height))
             },
     )
