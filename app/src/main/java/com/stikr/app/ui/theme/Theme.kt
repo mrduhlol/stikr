@@ -139,10 +139,10 @@ val SpaceMono = FontFamily(Font(R.font.space_mono_bold, FontWeight.Bold))
 private fun scheme(p: NeoPalette, dark: Boolean): ColorScheme {
     val base = if (dark) darkColorScheme() else lightColorScheme()
     return base.copy(
-        primary = p.cherry,
-        onPrimary = p.onCherry,
-        primaryContainer = p.butter,
-        onPrimaryContainer = p.onAccent,
+        primary = p.green,
+        onPrimary = p.onAccent,
+        primaryContainer = p.cherry,
+        onPrimaryContainer = p.onCherry,
         secondary = p.green,
         onSecondary = p.onAccent,
         secondaryContainer = p.creamDim,
