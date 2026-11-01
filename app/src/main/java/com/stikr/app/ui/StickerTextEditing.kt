@@ -1,6 +1,6 @@
 package com.stikr.app.ui
 
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,28 +23,46 @@ internal fun Modifier.stickerTextGestures(style: Style, selected: Int, enabled: 
     val current by rememberUpdatedState(style)
     val change by rememberUpdatedState(onStyle)
     return if (!enabled) this else pointerInput(selected) {
-        var preciseSize = current.textLayer(selected).captionSize.toFloat()
-        var emittedSize = preciseSize.roundToInt()
-        detectTransformGestures { centroid, pan, zoom, rotation ->
-            val parent = current
-            val layer = parent.textLayer(selected)
-            if (layer.caption.isNotBlank()) {
-                val oldSize = layer.captionSize.coerceAtLeast(8)
-                if (oldSize != emittedSize) preciseSize = oldSize.toFloat()
-                preciseSize = (preciseSize * zoom).coerceIn(8f, 320f)
-                val newSize = preciseSize.roundToInt()
-                emittedSize = newSize
-                val scale = newSize.toFloat() / oldSize
-                val oldX = (layer.captionX ?: .5f) * size.width
-                val oldY = (layer.captionY ?: if (layer.captionPosition == com.stikr.app.render.StickerRenderer.CaptionPosition.TOP) .12f else .88f) * size.height
-                val v = Offset(oldX - centroid.x, oldY - centroid.y) * scale
-                val radians = rotation * PI.toFloat() / 180f
-                val point = Offset(v.x*cos(radians)-v.y*sin(radians), v.x*sin(radians)+v.y*cos(radians)) + centroid + pan
-                change(parent.withTextLayer(selected, layer.copy(
-                    captionX = (point.x/size.width).coerceIn(0f,1f), captionY = (point.y/size.height).coerceIn(0f,1f),
-                    captionSize = newSize, captionRotation = layer.captionRotation + rotation,
-                )))
-            }
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed=false)
+            var working = current
+            var preciseSize = working.textLayer(selected).captionSize.toFloat()
+            var pastSlop = false
+            var totalZoom = 1f
+            var totalRotation = 0f
+            var totalPan = Offset.Zero
+            do {
+                val event = awaitPointerEvent()
+                val cancelled = event.changes.any { it.isConsumed }
+                if (!cancelled) {
+                    val zoom=event.calculateZoom()
+                    val rotation=event.calculateRotation()
+                    val pan=event.calculatePan()
+                    if (!pastSlop) {
+                        totalZoom*=zoom; totalRotation+=rotation; totalPan+=pan
+                        val radius=event.calculateCentroidSize(useCurrent=false)
+                        pastSlop=abs(1-totalZoom)*radius>viewConfiguration.touchSlop || abs(totalRotation)*PI.toFloat()/180f*radius>viewConfiguration.touchSlop || totalPan.getDistance()>viewConfiguration.touchSlop
+                    }
+                    if (pastSlop) {
+                        val layer=working.textLayer(selected)
+                        if(layer.caption.isNotBlank()) {
+                            val centroid=event.calculateCentroid(useCurrent=false)
+                            val oldSize=layer.captionSize.coerceAtLeast(8)
+                            preciseSize=(preciseSize*zoom).coerceIn(8f,320f)
+                            val newSize=preciseSize.roundToInt()
+                            val scale=newSize.toFloat()/oldSize
+                            val oldX=(layer.captionX?:.5f)*size.width
+                            val oldY=(layer.captionY?:if(layer.captionPosition==com.stikr.app.render.StickerRenderer.CaptionPosition.TOP) .12f else .88f)*size.height
+                            val v=Offset(oldX-centroid.x,oldY-centroid.y)*scale
+                            val radians=rotation*PI.toFloat()/180f
+                            val point=Offset(v.x*cos(radians)-v.y*sin(radians),v.x*sin(radians)+v.y*cos(radians))+centroid+pan
+                            working=working.withTextLayer(selected,layer.copy(captionX=(point.x/size.width).coerceIn(0f,1f),captionY=(point.y/size.height).coerceIn(0f,1f),captionSize=newSize,captionRotation=layer.captionRotation+rotation))
+                            change(working)
+                            event.changes.forEach { if(it.pressed) it.consume() }
+                        }
+                    }
+                }
+            } while (!cancelled && event.changes.any { it.pressed })
         }
     }
 }
