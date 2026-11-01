@@ -149,8 +149,6 @@ fun PackScreen(
 
             item(span = { GridItemSpan(maxLineSpan) }, key = "thumbnail") {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("by ${pack.author}", color = palette.muted, style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp))
                     PackCollectionCard(pack, Modifier.width(260.dp), onClick = onThumbnail)
                 }
             }
