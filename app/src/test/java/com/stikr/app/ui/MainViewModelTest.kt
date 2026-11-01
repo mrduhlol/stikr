@@ -90,6 +90,39 @@ class MainViewModelTest {
     }
 
     @Test
+    fun packEditUpdatesEveryStickerInPlaceAndKeepsOriginals() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val root = File(app.filesDir, "packs").apply { deleteRecursively() }
+        val repo = PackRepository(root)
+        val pack = repo.createPack("Whole pack")
+        val photo = Bitmap.createBitmap(64,64,Bitmap.Config.ARGB_8888).apply { eraseColor(Color.GREEN) }
+        val source = java.io.ByteArrayOutputStream().use { out -> photo.compress(Bitmap.CompressFormat.PNG,100,out);out.toByteArray() }
+        val bytes = com.stikr.app.render.StickerCodec.encodeWebp(photo)
+        repo.addSticker(pack.id,bytes,fileName="one.webp",source=source)
+        repo.addSticker(pack.id,bytes,fileName="two.webp",source=source)
+        photo.recycle()
+        val before = repo.getPack(pack.id)!!
+        val model = MainViewModel(app)
+        val store = ViewModelStore().apply { put("bulk",model) }
+        try {
+            model.editSticker(pack.id,"one.webp")
+            await { model.editor.value?.ready == true }
+            val style = StickerRenderer.Style(caption="Together",captionX=.4f,captionY=.6f,captionRotation=25f,captionItalic=true)
+            model.setStyle(style)
+            var done=false
+            model.applyPackStyle { done=true }
+            await { done }
+            val after=repo.getPack(pack.id)!!
+            assertEquals(before.stickers,after.stickers)
+            assertTrue(after.contentVersion>before.contentVersion)
+            for(name in after.stickers) {
+                assertTrue(repo.sourceFile(pack.id,name)!!.readBytes().contentEquals(source))
+                assertEquals(style,com.stikr.app.render.StickerStyleJson.read(org.json.JSONObject(repo.editData(pack.id,name)!!)))
+            }
+        } finally { store.clear() }
+    }
+
+    @Test
     fun singleStickerEditorReusesTheSharedPackAndCreatesStartersOnlyOnce() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         val root = File(app.filesDir, "packs").apply { deleteRecursively() }
