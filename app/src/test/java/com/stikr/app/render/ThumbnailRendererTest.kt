@@ -45,6 +45,21 @@ class ThumbnailRendererTest {
         listOf(source, left, right, decoded).forEach { it.recycle() }
     }
 
+    @Test fun largerTextAndBundledFontsChangeTheExportedPixels() {
+        StickerTypography.initialize(ApplicationProvider.getApplicationContext())
+        val base = ThumbnailText(text = "Hi", font = "sans", size = 240)
+        val oldMaximum = ThumbnailRenderer.text(base)
+        val larger = ThumbnailRenderer.text(base.copy(size = 400))
+        assertFalse("new size range must affect the saved image", oldMaximum.sameAs(larger))
+        for (font in listOf("handwritten", "script", "condensed")) {
+            val image = ThumbnailRenderer.text(base.copy(font = font))
+            assertFalse("bundled $font must render distinct glyphs", oldMaximum.sameAs(image))
+            image.recycle()
+        }
+        oldMaximum.recycle()
+        larger.recycle()
+    }
+
     @Test fun typographyAndColorsAffectExport() {
         StickerTypography.initialize(ApplicationProvider.getApplicationContext())
         val style = ThumbnailText(text = "Tiny friends", font = "display", background = Color.MAGENTA, color = Color.GREEN)
