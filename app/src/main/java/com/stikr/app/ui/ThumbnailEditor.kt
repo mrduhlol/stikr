@@ -93,7 +93,7 @@ fun ThumbnailEditor(onSave: (ByteArray) -> Unit, onBack: () -> Unit, initialFile
         onDispose { owned?.takeUnless { it.isRecycled }?.recycle() }
     }
     BackHandler { if (!busy) onBack() }
-    Column(Modifier.fillMaxSize().background(palette.paper).statusBarsPadding().navigationBarsPadding().imePadding()) {
+    Column(Modifier.fillMaxSize().collectionBackground().statusBarsPadding().navigationBarsPadding().imePadding()) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             NeoIconButton(onClick = { if (!busy) onBack() }, icon = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             Text("Pack thumbnail", Modifier.padding(start = 14.dp), style = MaterialTheme.typography.headlineMedium, color = palette.ink)
@@ -135,7 +135,7 @@ fun ThumbnailEditor(onSave: (ByteArray) -> Unit, onBack: () -> Unit, initialFile
                     NeoOutlinedButton(text = if (source == null) "Choose photo" else "Change photo", onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, enabled = !busy)
                 } else {
                     NeoTextField(words, { words = it.take(500) }, label = "Cover text", placeholder = "Name your little world", singleLine = false, enabled = !busy)
-                    TextStyleControls(font, textSize, bold, background, textColor, { font = it }, { textSize = it }, { bold = it }, { background = it }, { textColor = it }, 32f..240f)
+                    TextStyleControls(font, textSize, bold, background, textColor, { font = it }, { textSize = it }, { bold = it }, { background = it }, { textColor = it }, 32f..400f)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Italic", Modifier.weight(1f), color = palette.ink)
                         NeoSwitch(italic, { italic = it }, contentDescription = "Italic text")
