@@ -7,6 +7,7 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.FileTime
+import com.stikr.app.data.backup.BackupArchive
 import kotlin.random.Random
 
 /**
@@ -200,6 +201,77 @@ class PackRepository(private val root: File) {
             File(root, packId).resolve(fileName).writeBytes(bytes)
             pack.copy(trayImage = fileName, contentVersion = pack.contentVersion + 1).also { writePack(it) }
         }
+
+    /** Writes a consistent pack-only snapshot. Call from an IO dispatcher. */
+    fun exportBackup(destination: File): Unit = synchronized(lock) {
+        val temp = File(destination.parentFile ?: root, ".${destination.name}.tmp")
+        try {
+            BackupArchive.write(root, temp)
+            Files.move(temp.toPath(), destination.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } finally {
+            temp.delete()
+        }
+    }
+
+    /**
+     * Validates the complete archive before merging. Newer local packs win; equal
+     * versions also keep local state. Returns the number of packs installed.
+     */
+    fun importBackup(source: File): Int = synchronized(lock) {
+        root.mkdirs()
+        BackupArchive.validate(source, root).use { validated ->
+            val reservedDisplayIds = root.listFiles { f -> f.isDirectory }.orEmpty().mapNotNull { dir ->
+                runCatching { JSONObject(File(dir, PACK_FILE).readText()).optString("displayId").takeIf { it.isNotBlank() } }.getOrNull()
+            }.toMutableSet()
+            val install = validated.packs.filter { incoming ->
+                val local = readPack(File(root, incoming.id))
+                local == null || incoming.contentVersion > local.contentVersion
+            }
+            if (install.isEmpty()) return@synchronized 0
+            val staging = File(root, ".restore-${System.nanoTime()}").apply { mkdirs() }
+            val rollback = File(staging, "rollback").apply { mkdirs() }
+            val movedOld = mutableListOf<Pair<File, File>>()
+            val movedNew = mutableListOf<File>()
+            try {
+                install.forEach { pack ->
+                    val stagedDir = File(staging, "new-${pack.id}").apply { mkdirs() }
+                    pack.files.forEach { (name, file) -> Files.copy(file.toPath(), File(stagedDir, name).toPath()) }
+                    val metaFile = File(stagedDir, PACK_FILE)
+                    val json = JSONObject(metaFile.readText())
+                    var displayId = json.optString("displayId")
+                    if (displayId.isBlank() || displayId in reservedDisplayIds) {
+                        displayId = Random.nextInt(10_000_000, 100_000_000).toString()
+                        while (displayId in reservedDisplayIds) displayId = Random.nextInt(10_000_000, 100_000_000).toString()
+                        json.put("displayId", displayId)
+                        metaFile.writeText(json.toString())
+                    }
+                    reservedDisplayIds += displayId
+                }
+                install.forEach { pack ->
+                    val target = File(root, pack.id)
+                    if (target.exists()) {
+                        val backup = File(rollback, pack.id)
+                        Files.move(target.toPath(), backup.toPath(), StandardCopyOption.ATOMIC_MOVE)
+                        movedOld += target to backup
+                    }
+                    val stagedDir = File(staging, "new-${pack.id}")
+                    Files.move(stagedDir.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE)
+                    movedNew += target
+                }
+                metadata.clear()
+                install.size
+            } catch (failure: Exception) {
+                movedNew.asReversed().forEach { runCatching { it.deleteRecursively() } }
+                movedOld.asReversed().forEach { (target, backup) ->
+                    if (backup.exists()) runCatching { Files.move(backup.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE) }
+                }
+                metadata.clear()
+                throw failure
+            } finally {
+                staging.deleteRecursively()
+            }
+        }
+    }
 
     /**
      * Resolves a sticker file for serving, but only when the pack still lists it.
