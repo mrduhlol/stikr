@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PersonOutline
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
@@ -46,6 +48,7 @@ fun HomeScreen(
     onStartBatch: (String, String, List<Uri>, Boolean) -> Unit,
     onShowTour: () -> Unit,
     onSettings: () -> Unit = {},
+    onProfile: () -> Unit = {},
     onExportSingles: (String) -> Unit = {},
     onDeleteSingle: (String, String) -> Unit = { _, _ -> },
 ) {
@@ -68,9 +71,10 @@ fun HomeScreen(
     Box(Modifier.fillMaxSize().collectionBackground()) {
         LazyVerticalGrid(columns=GridCells.Fixed(2),state=state,modifier=Modifier.fillMaxSize().blur(if(exportPack!=null || deleteSingle!=null) 6.dp else 0.dp),contentPadding=PaddingValues(20.dp,bars.calculateTopPadding()+18.dp,20.dp,bars.calculateBottomPadding()+90.dp),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
             item(span={GridItemSpan(maxLineSpan)},key="brand") { Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                Image(painterResource(R.drawable.stikr_ghost),"stikr",Modifier.size(36.dp).clip(CircleShape))
+                Image(painterResource(R.drawable.stikr_ghost),"stikr",Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)))
                 Spacer(Modifier.weight(1f))
                 SoundToggle()
+                IconButton(onClick = onProfile) { Icon(Icons.Default.PersonOutline, "Account and backup", tint = palette.ink) }
             } }
             item(span={GridItemSpan(maxLineSpan)},key="intro") { Column(Modifier.padding(top=14.dp,bottom=10.dp)) { Text("Your little collections.",fontSize=30.sp,lineHeight=34.sp,fontWeight=FontWeight.SemiBold,letterSpacing=(-.8).sp,color=palette.ink); Text("Photos, words, and a little personality.",style=MaterialTheme.typography.bodyMedium,color=palette.muted,modifier=Modifier.padding(top=10.dp)) } }
             item(span={GridItemSpan(maxLineSpan)},key="create") { Row(Modifier.padding(bottom=16.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
@@ -81,7 +85,7 @@ fun HomeScreen(
             item(span={GridItemSpan(maxLineSpan)},key="singles") { Column {
                 Row { Text("Single stickers",style=MaterialTheme.typography.titleSmall,color=palette.ink,modifier=Modifier.weight(1f)); Text("${singles.size} saved",style=MaterialTheme.typography.bodySmall,color=palette.muted) }
                 LazyRow(Modifier.padding(top=12.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)) { items(singles,key={it.first.id+it.second}) { (pack,name) ->
-                    Box { Surface(Modifier.size(83.dp,86.dp).combinedClickable(onClick={},onLongClick={ selected=pack to name },onLongClickLabel="Sticker actions"),shape=RoundedCornerShape(14.dp),color=palette.card,border=BorderStroke(1.dp,Color(0xFF58435F))) { StickerImage(root.resolve(pack.id).resolve(name),"Single sticker",Modifier.padding(5.dp).fillMaxSize()) }
+                    Box { Surface(Modifier.size(83.dp,86.dp).combinedClickable(onClick={},onLongClick={ selected=pack to name },onLongClickLabel="Sticker actions"),shape=RoundedCornerShape(14.dp),color=palette.card,border=BorderStroke(1.dp,Color(0xFF414A3B))) { StickerImage(root.resolve(pack.id).resolve(name),"Single sticker",Modifier.padding(5.dp).fillMaxSize()) }
                         DropdownMenu(expanded=selected?.first?.id==pack.id && selected?.second==name,onDismissRequest={selected=null}) {
                             DropdownMenuItem(text={Text("Add to WhatsApp")},onClick={selected=null;exportPack=pack})
                             DropdownMenuItem(text={Text("Delete")},onClick={selected=null;deleteSingle=pack to name})
@@ -89,14 +93,14 @@ fun HomeScreen(
                     }
                 } }
                 Text(if(singles.isEmpty()) "Your single stickers will collect here." else "Long-press to add to WhatsApp or delete",fontSize=11.sp,color=palette.muted,modifier=Modifier.padding(top=10.dp))
-                HorizontalDivider(Modifier.padding(top=22.dp,bottom=18.dp),color=Color(0xFF544058))
+                HorizontalDivider(Modifier.padding(top=22.dp,bottom=18.dp),color=Color(0xFF303A2C))
                 Text("Sticker packs",style=MaterialTheme.typography.titleSmall,color=palette.ink,modifier=Modifier.padding(bottom=2.dp))
             } }
             items(normal,key={it.id}) { pack -> PackCollectionCard(pack,onClick={onOpenPack(pack.id)}) }
             if(normal.isEmpty()) item(span={GridItemSpan(maxLineSpan)}) { Text("Create your first pack above.",color=palette.muted,modifier=Modifier.padding(vertical=30.dp)) }
         }
         if(floating) Box(Modifier.align(Alignment.BottomEnd).padding(end=20.dp,bottom=bars.calculateBottomPadding()+20.dp)) {
-            FloatingActionButton(onClick={fabMenu=!fabMenu},containerColor=palette.butter,contentColor=palette.onAccent) { Icon(Icons.Default.Add,"Create a pack or single sticker") }
+            FloatingActionButton(onClick={fabMenu=!fabMenu},containerColor=palette.cherry,contentColor=palette.onCherry) { Icon(Icons.Default.Add,"Create a pack or single sticker") }
             DropdownMenu(expanded=fabMenu,onDismissRequest={fabMenu=false}) {
                 DropdownMenuItem(text={Text("Create a sticker pack")},onClick={fabMenu=false;showCreateBatch=true})
                 DropdownMenuItem(text={Text("Create a sticker")},onClick={fabMenu=false;onMakeSticker()})
@@ -117,10 +121,10 @@ fun HomeScreen(
 @Composable
 private fun CreationControl(title:String,subtitle:String,primary:Boolean,modifier:Modifier,onClick:()->Unit) {
     val p=Neo.palette
-    Surface(onClick={ com.stikr.app.audio.AppSounds.click(); onClick() },modifier=modifier.heightIn(min=144.dp),shape=RoundedCornerShape(15.dp),color=if(primary)p.butter else p.card,contentColor=if(primary)p.onAccent else p.ink) { Column(Modifier.padding(15.dp)) {
+    Surface(onClick={ com.stikr.app.audio.AppSounds.click(); onClick() },modifier=modifier.heightIn(min=144.dp),shape=RoundedCornerShape(15.dp),color=p.card,contentColor=p.ink,border=BorderStroke(1.dp,if(primary)Color(0xFF677257) else Color(0xFF414A3B))) { Column(Modifier.background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(if(primary)Color(0xFF303B29) else p.card,Color(0xFF1B2119)))).padding(15.dp)) {
         Icon(if(primary) Icons.Default.Add else Icons.Default.Edit,null,Modifier.size(24.dp))
         Text(title,fontSize=18.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(top=10.dp,bottom=7.dp))
-        Text(subtitle,fontSize=11.sp,color=if(primary)Color(0xFF4B592B) else p.muted)
+        Text(subtitle,fontSize=11.sp,color=p.muted)
     } }
 }
 
