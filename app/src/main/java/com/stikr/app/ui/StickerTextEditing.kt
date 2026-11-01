@@ -43,7 +43,7 @@ internal fun Modifier.stickerTextGestures(style: Style, selected: Int, enabled: 
                         val radius=event.calculateCentroidSize(useCurrent=false)
                         pastSlop=abs(1-totalZoom)*radius>viewConfiguration.touchSlop || abs(totalRotation)*PI.toFloat()/180f*radius>viewConfiguration.touchSlop || totalPan.getDistance()>viewConfiguration.touchSlop
                     }
-                    if (pastSlop) {
+                    if (pastSlop && (zoom != 1f || rotation != 0f || pan != Offset.Zero)) {
                         val layer=working.textLayer(selected)
                         if(layer.caption.isNotBlank()) {
                             val centroid=event.calculateCentroid(useCurrent=false)
