@@ -106,7 +106,7 @@ fun PackCollectionCard(pack: StickerPack, modifier: Modifier = Modifier, onClick
 }
 
 @Composable
-fun WhatsAppMark(modifier: Modifier = Modifier, color: Color = Color(0xFFD5F277)) {
+fun WhatsAppMark(modifier: Modifier = Modifier, color: Color = Color(0xFFBCC99B)) {
     val path = remember { PathParser().parsePathString("M20.5 3.5A11.9 11.9 0 0 0 1.7 17.8L0 24l6.3-1.7A12 12 0 0 0 24 11.9a11.8 11.8 0 0 0-3.5-8.4ZM12 21.9a10 10 0 0 1-5.1-1.4l-.4-.2-3.7 1 1-3.6-.3-.4A10 10 0 1 1 12 21.9Zm5.5-7.5c-.3-.1-1.8-.9-2-.9-.3-.1-.5-.1-.7.2l-.9 1.1c-.2.2-.3.2-.6.1a8.2 8.2 0 0 1-4.1-3.6c-.3-.5.3-.5.8-1.4.1-.2.1-.4 0-.6L9.1 7c-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.6.1-.8.4a3.3 3.3 0 0 0-1 2.4c0 1.4 1 2.8 1.2 3 .1.2 2.1 3.3 5.1 4.6 1.9.8 2.7.9 3.6.8.6-.1 1.8-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.2-.3-.3-.6-.4Z").toPath() }
     Canvas(modifier) { withTransform({ scale(size.width/24f,size.height/24f,Offset.Zero) }) { drawPath(path,color) } }
 }
@@ -170,7 +170,7 @@ fun SlideExport(enabled: Boolean = true, busy: Boolean = false, onConfirm: () ->
         }
         Text(if(busy) "Preparing pack…" else "Slide to add to WhatsApp",fontSize=12.sp,color=Color(0xFFE1EBCD).copy(alpha=if(active) 1f else .5f),modifier=Modifier.padding(start=34.dp,end=28.dp))
         WhatsAppMark(Modifier.align(Alignment.CenterEnd).padding(end=17.dp).size(24.dp))
-        Box(Modifier.align(Alignment.CenterStart).offset { IntOffset((inset+position).roundToInt(),0) }.size(52.dp).background(if(active) Color(0xFFD5F277) else Color(0xFF8A877A),RoundedCornerShape(26.dp)),contentAlignment=Alignment.Center) {
+        Box(Modifier.align(Alignment.CenterStart).offset { IntOffset((inset+position).roundToInt(),0) }.size(52.dp).background(if(active) Color(0xFFBCC99B) else Color(0xFF646C5B),RoundedCornerShape(26.dp)),contentAlignment=Alignment.Center) {
             Icon(Icons.AutoMirrored.Filled.ArrowForward,null,tint=Color(0xFF263113))
         }
     }
