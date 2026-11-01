@@ -19,7 +19,8 @@ function startArtwork() {
     const frame = frameAt(seconds);
     const text = frame.text.split('\n');
     const colors = frame.color.split('\n');
-    const scale = Math.max(width / (meta.cols*8), height / (meta.rows*14));
+    // Fit the character plane without stretching or cropping the silhouettes.
+    const scale = Math.min(width / (meta.cols*8), height / (meta.rows*14));
     const cellWidth=8*scale, cellHeight=14*scale;
     const left=(width-meta.cols*cellWidth)/2, top=(height-meta.rows*cellHeight)/2;
     context.fillStyle='#000000'; context.fillRect(0,0,width,height);
