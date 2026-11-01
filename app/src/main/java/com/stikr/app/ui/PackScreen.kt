@@ -92,6 +92,7 @@ fun PackScreen(
     exporting: Boolean = false,
     onRenameAuthor: (String) -> Unit = {},
     onThumbnail: () -> Unit = {},
+    onEditPack: () -> Unit = {},
 ) {
     val palette = Neo.palette
     val context = LocalContext.current
@@ -142,6 +143,7 @@ fun PackScreen(
                     onDelete = { showDelete = true },
                     onThumbnail = onThumbnail,
                     onAuthor = { showAuthor = true },
+                    onEditPack = onEditPack,
                 )
             }
 
@@ -284,17 +286,18 @@ fun PackScreen(
 
 @Composable
 private fun TopBar(pack: StickerPack, onBack: () -> Unit, onRename: () -> Unit,
-                    onDelete: () -> Unit, onThumbnail: () -> Unit, onAuthor: () -> Unit) {
+                    onDelete: () -> Unit, onThumbnail: () -> Unit, onAuthor: () -> Unit, onEditPack: () -> Unit) {
     val palette = Neo.palette
     var menu by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = palette.ink) }
-        Text(pack.name, style = MaterialTheme.typography.titleMedium, color = palette.ink,
+        Text("Pack details", style = MaterialTheme.typography.titleMedium, color = palette.ink,
             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
-        IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Delete pack", tint = palette.muted) }
+        TextButton(onClick = onEditPack, enabled = pack.stickers.isNotEmpty()) { Icon(Icons.Default.Edit, null, Modifier.size(15.dp), tint = palette.ink); Text("Pack edit", color = palette.ink) }
         Box {
             IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, "Pack options", tint = palette.ink) }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(text = { Text("Delete pack") }, onClick = { menu = false; onDelete() })
                 DropdownMenuItem(text = { Text("Add thumbnail") }, onClick = { menu = false; onThumbnail() })
                 DropdownMenuItem(text = { Text("Rename Title") }, onClick = { menu = false; onRename() })
                 DropdownMenuItem(text = { Text("Rename author") }, onClick = { menu = false; onAuthor() })
