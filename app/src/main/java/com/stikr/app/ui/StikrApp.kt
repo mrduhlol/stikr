@@ -330,7 +330,7 @@ fun StikrApp(
             automaticBackup = backup.automaticBackup,
             onAutomaticBackup = backupController::setAutomaticBackup,
         )
-        if (confirmBackupReplace) com.stikr.app.ui.neo.ConfirmDialog(
+        if (confirmBackupReplace) ConfirmDialog(
             kicker = "", title = "Replace the saved backup?",
             body = "Your current library will replace the backup in this Google account. Restore first if it contains collections you want to keep.",
             confirmLabel = "Replace backup", dismissLabel = "Cancel",
