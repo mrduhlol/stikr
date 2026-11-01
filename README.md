@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/brand/stikr-approved-logo.png" alt="Stikr app icon" width="112" height="112">
+  <img src="docs/brand/stikr-pebble.png" alt="Stikr app icon" width="112" height="112">
 </p>
 
 <h1 align="center">Stikr</h1>
