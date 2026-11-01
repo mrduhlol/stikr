@@ -102,7 +102,6 @@ internal object BackupArchive {
                 }
             }
             val packs = temp.listFiles().orEmpty().sortedBy { it.name }.map { dir -> validatePack(dir) }
-            require(packs.isNotEmpty()) { "Backup contains no packs" }
             return Validated(packs, temp)
         } catch (failure: Exception) {
             temp.deleteRecursively()
