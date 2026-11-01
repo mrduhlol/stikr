@@ -1,31 +1,55 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Make stickers from your photos on Android. On-device cut-out, captions, packs, and WhatsApp export. No required account or watermark; local backup files.">
-<meta name="color-scheme" content="light dark">
-<title>Photos in, stickers out. | stikr</title>
-<link rel="icon" href="assets/logo.png" type="image/png">
-<link rel="stylesheet" href="style.css">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Make stickers from your photos with Stikr for Android. Try the browser demo, explore the app, and download the free APK. No account required.">
+<meta name="theme-color" content="#000000"><meta name="color-scheme" content="dark">
+<meta property="og:title" content="Stikr · Your photos. Your stickers."><meta property="og:description" content="Create stickers, make them your own, and take your packs to WhatsApp. Free for Android.">
+<title>Stikr · Your photos. Your stickers.</title>
+<link rel="icon" href="assets/logo.png"><link rel="stylesheet" href="style.css"><script type="module" src="site.js"></script>
 </head>
-<body>
+<body class="landing">
+<canvas id="jellyfish-background" aria-hidden="true"></canvas>
 <a class="skip" href="#main">Skip to content</a>
-<header><a class="brand" href="index.html"><img src="assets/logo.png" alt="" width="44" height="44">stikr</a><nav aria-label="Main navigation"><a href="index.html" aria-current="page">Home</a><a href="install.html">Install</a><a href="use.html">Use</a><a href="design.html">Design</a><a href="develop.html">Develop</a><a href="privacy.html">Privacy</a></nav></header>
+<header><a class="brand" href="index.html" aria-label="Stikr home"><img src="assets/logo.png" alt="" width="42" height="42">Stikr</a><nav aria-label="Main navigation"><a href="#screens">The app</a><a href="#demo">Try it</a><a href="#guide">Get started</a><a href="privacy.html">Privacy</a></nav></header>
 <main id="main" tabindex="-1">
 <section class="hero" aria-labelledby="hero-title">
-<div><span class="tag">Android 8.0+ / Free / No account</span><h1 id="hero-title">Photos in,<br><span>stickers out.</span></h1><p class="intro">Turn a photo into a sticker on your phone. Cut out the subject, add an outline and a caption, then send it to WhatsApp or share it anywhere.</p><div class="actions"><a class="button" href="https://github.com/mrduhlol/stikr/releases/latest/download/stikr.apk">Download APK ↓</a><a class="button secondary" href="use.html">Make your first sticker ↗</a></div><p class="label">No required sign-in. No watermark. Optional backup.</p></div>
-<div class="hero-art"><img src="assets/logo.png" alt="stikr's white sticker S with a peeled corner on purple" width="1254" height="1254"><span class="label">Made on your phone.<br>Ready for your chats.</span></div>
+<div class="hero-copy"><h1 id="hero-title">Your photos.<br>Your stickers.</h1><p class="intro">Turn photos into stickers, add your own words, and take your packs to WhatsApp.</p>
+<div class="actions" id="hero-actions"><a class="button" href="https://github.com/mrduhlol/stikr/releases/download/app/stikr.apk"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg>Download for Android</a><a class="button secondary" href="#demo">Try the demo<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a></div>
+<div class="trustline" aria-label="App requirements"><span>Free</span><span>Android 8.0+</span><span>No account required</span></div>
+</div><div class="hero-art"><img class="hero-phone" src="assets/app-pack.webp" alt="Stikr's Android pack screen with a portrait cover, sticker collection and WhatsApp slider" width="400" height="880" fetchpriority="high"><span class="hero-caption">A pack made from your photos.</span></div>
 </section>
-<section aria-labelledby="features"><div class="section-top"><h2 id="features">Your photo. Your sticker.</h2><span class="label">What stikr does</span></div><div class="grid">
-<article class="card cyan"><h3>Cut out the subject</h3><p>ML Kit removes the background on device. Google Play services downloads the model on first use. If cut-out is unavailable, keep the full photo.</p></article>
-<article class="card butter"><h3>Give it an outline</h3><p>Pick white or ink and adjust the thickness. Add an optional caption in cream, ink, butter, or cherry, at the top or bottom.</p></article>
-<article class="card green"><h3>Build a pack</h3><p>Create, rename, and delete packs. Add or delete stickers. Import a pack of 3–30 stickers into WhatsApp or WhatsApp Business.</p></article>
-<article class="card pink"><h3>Share one anywhere</h3><p>Send a sticker as a PNG through Android's share sheet. No account required. Editing and sharing work offline; backups are saved as local files.</p></article>
+<section class="section-block" id="screens" aria-labelledby="screens-title"><div class="section-heading"><h2 id="screens-title">A place for every reaction.</h2><p>Keep single stickers together, organise your packs, and return to an edit whenever you want.</p></div>
+<div class="screenshot-strip" tabindex="0" aria-label="App screenshots. Swipe or scroll to see all three.">
+<figure class="screen"><img src="assets/app-home.webp" alt="Stikr home screen with separate actions for creating a sticker and a pack" width="400" height="880" loading="lazy"><figcaption>Your collections</figcaption></figure>
+<figure class="screen"><img src="assets/app-pack.webp" alt="Stikr pack details with a large cover, author name and sticker count" width="400" height="880" loading="lazy"><figcaption>A cover for each pack</figcaption></figure>
+<figure class="screen"><img src="assets/app-editor.webp" alt="The Android sticker editor showing a photo, optional cut-out and outline controls" width="400" height="880" loading="lazy"><figcaption>Make each sticker your own</figcaption></figure></div><p class="screen-note">App screens shown with example stickers. Swipe the screenshots on mobile.</p>
+</section>
+<section class="section-block feature-layout" id="features" aria-labelledby="features-title"><div><h2 id="features-title">Make the sticker you meant.</h2><p class="intro">Start with a photo. Keep the edits simple, or spend a little longer on the details.</p></div><div class="feature-rows">
+<article class="feature-row"><h3>One sticker or a whole pack</h3><p>Create a single sticker in your shared Stikr collection, or select several photos for a pack of up to 30.</p></article>
+<article class="feature-row"><h3>Text you can move</h3><p>Choose from 12 fonts. Drag, resize and rotate your words. Change the text colour, add a background, and format each layer.</p></article>
+<article class="feature-row"><h3>Your photo, your edges</h3><p>Keep the full photo by default. Turn on background removal when you need it, round the corners, or add an outline. Edit the entire pack in one go.</p></article>
+<article class="feature-row"><h3>A copy you can keep</h3><p>Save your packs and edits to a local backup file. Restore that file after reinstalling or moving to another Android phone.</p></article>
 </div></section>
-<section aria-labelledby="screens"><div class="section-top"><h2 id="screens">A sticker book on screen.</h2><span class="label">Light + dark / Follows your phone</span></div><p>Cream paper, ink outlines, pastel cards, and hard shadows. These sample screens use placeholder stickers.</p><figure><picture><source media="(prefers-color-scheme: dark)" srcset="assets/screens-dark.png"><img src="assets/screens-light.png" alt="Sample stikr screens showing the home page, packs, a WhatsApp pack, and the sticker editor" width="1552" height="820" loading="lazy"></picture><figcaption>Pick a photo. Edit the sticker. Save it to a pack.</figcaption></figure><a href="design.html">See the design system ↗</a></section>
-<section class="card green" aria-labelledby="local"><span class="label">Private by design</span><h2 id="local">Your photos stay on your phone.</h2><p>Photo processing stays on device. No required account, analytics, or telemetry. You choose when to share, import a pack, or save a local backup.</p><a href="privacy.html">Read the privacy details ↗</a></section>
+<section class="section-block demo-layout" id="demo" aria-labelledby="demo-title"><div class="demo-copy"><h2 id="demo-title">Try a sticker.<br>Right here.</h2><p>Use the sample photos or choose one of your own. Add text, try a font, and move it around the canvas.</p><div class="demo-actions"><button type="button" data-demo-tab="text">Edit a single sticker</button><button type="button" data-demo-tab="edit">Try a pack edit</button><button type="button" data-demo-tab="pack">Explore the pack</button></div><p class="small">On touchscreens, pinch to resize text and twist with two fingers to rotate it. Scroll inside the demo for the editing controls.</p><p class="demo-boundary">This is an interactive browser demo, not the Android app. Your selected photo stays in your browser. WhatsApp import and automatic background removal are available in the Android app.</p></div>
+<div class="demo-stage"><iframe id="app-demo" src="demo.html" title="Interactive Stikr browser demo" loading="lazy" referrerpolicy="no-referrer"></iframe><a class="demo-link" href="demo.html" target="_blank" rel="noopener">Open the demo in its own tab</a></div>
+</section>
+<section class="section-block guide-layout" id="guide" aria-labelledby="guide-title"><div><h2 id="guide-title">Your first pack,<br>step by step.</h2><p class="intro">You need an Android phone and WhatsApp or WhatsApp Business.</p><a href="install.html">Full installation guide</a></div><ol class="steps">
+<li><h3>Download and install Stikr</h3><p>Download the APK and open it. If Android asks, allow your browser to install this app, then follow the installation prompts.</p></li>
+<li><h3>Choose your photos</h3><p>Open Stikr and choose Create a sticker or Create a sticker pack. Pick the photos you want to use. Leave the pack name blank for a random name.</p></li>
+<li><h3>Make your edits</h3><p>Add words, adjust the outline, or remove the background. Pack edit applies a common look to every sticker. Save when you are ready.</p></li>
+<li><h3>Slide to add to WhatsApp</h3><p>Complete the slider and confirm the import in WhatsApp. Normal packs need 3 to 30 stickers. Single stickers collect in the shared Stikr pack.</p></li>
+<li><h3>Save a backup</h3><p>Use the folder icon on the home screen to save a backup file outside the app. Keep that file if you want to restore your collection later.</p></li>
+</ol></section>
+<section class="section-block" aria-labelledby="faq-title"><div class="section-heading"><h2 id="faq-title">A few things to know.</h2></div><div class="faq">
+<details><summary>Is Stikr free?</summary><p>Yes. The Android app is free and does not require an account. Download the signed APK using the button on this page.</p></details>
+<details><summary>Can this website add stickers to WhatsApp?</summary><p>The browser demo lets you try the editing controls. Install the Android app to import sticker packs into WhatsApp or WhatsApp Business.</p></details>
+<details><summary>Do my photos get uploaded?</summary><p>Stikr processes photos on your phone. The browser demo also keeps the photo you select in your browser. Neither sends that photo to a server.</p></details>
+<details><summary>Will I keep my packs after uninstalling?</summary><p>Uninstalling removes the app's private data. Save a local backup file outside the app first. Reinstall Stikr and use Restore from file to recover it. Installing an update over the existing app keeps your packs.</p></details>
+<details><summary>Why might background removal be unavailable?</summary><p>Automatic cut-out needs Google Play services and its on-device model. If it is unavailable, keep the full photo. The browser demo does not run this Android feature.</p></details>
+</div></section>
+<section class="final-download" aria-labelledby="download-title"><h2 id="download-title">Make your next reply a sticker.</h2><p>Free for Android 8.0 and later. No sign-in.</p><div class="actions"><a class="button" href="https://github.com/mrduhlol/stikr/releases/download/app/stikr.apk"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg>Download Stikr</a></div></section>
 </main>
-<footer><p>stikr / Photos in, stickers out.</p><div><a href="privacy.html">Privacy</a><a href="https://github.com/mrduhlol/stikr">Source on GitHub</a><a href="licenses/anton-OFL.txt">Anton font license</a></div></footer>
-</body>
-</html>
+<footer><p>Stikr. Personal stickers for your conversations.</p><div><a href="privacy.html">Privacy</a><a href="https://github.com/mrduhlol/stikr">GitHub</a><a href="https://www.ascii-magic.com/ascii/jellyfish">ASCII artwork</a></div></footer>
+<a class="button sticky-download" href="https://github.com/mrduhlol/stikr/releases/download/app/stikr.apk">Download for Android<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg></a>
+</body></html>
