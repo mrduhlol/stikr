@@ -236,11 +236,11 @@ class BatchEngineTest {
         val state = awaitBatch(vm)
 
         assertEquals(1, state.created.size)
-        assertEquals("My stickers", state.created.first().name)
+        assertTrue(state.created.first().name in com.stikr.app.data.PackNames.words)
         assertEquals("stikr", state.created.first().author)
 
         val pack = repo().listPacks().single()
-        assertEquals("My stickers", pack.name)
+        assertEquals(state.created.first().name, pack.name)
         assertEquals("stikr", pack.author)
     }
 
