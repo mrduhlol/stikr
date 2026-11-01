@@ -57,12 +57,52 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val packsRoot = File(app.filesDir, "packs")
     private val repo = PackRepository(packsRoot)
-    private val backupController = lazy { com.stikr.app.backup.GoogleBackupController(app, repo) }
-    val googleBackup: com.stikr.app.backup.GoogleBackupController get() = backupController.value
+    private val _localBackupBusy = MutableStateFlow(false)
+    val localBackupBusy: StateFlow<Boolean> = _localBackupBusy.asStateFlow()
 
-    override fun onCleared() {
-        if (backupController.isInitialized()) backupController.value.close()
-        super.onCleared()
+    fun exportLocalBackup(uri: Uri) = transferLocalBackup(uri, restore = false)
+    fun restoreLocalBackup(uri: Uri) = transferLocalBackup(uri, restore = true)
+
+    private fun transferLocalBackup(uri: Uri, restore: Boolean) {
+        if (_localBackupBusy.value) return
+        _localBackupBusy.value = true
+        viewModelScope.launch {
+            try {
+                val count = withContext(Dispatchers.IO) {
+                    val app = getApplication<Application>()
+                    val archive = File.createTempFile("stikr-local-", ".zip", app.cacheDir)
+                    try {
+                        if (restore) {
+                            val input = requireNotNull(app.contentResolver.openInputStream(uri)) { "Cannot open backup" }
+                            input.use { source -> archive.outputStream().use { output ->
+                                val buffer = ByteArray(32 * 1024)
+                                var total = 0L
+                                while (true) {
+                                    val read = source.read(buffer)
+                                    if (read < 0) break
+                                    total += read
+                                    require(total <= com.stikr.app.data.backup.BackupArchive.MAX_ARCHIVE_BYTES) { "Backup too large" }
+                                    output.write(buffer, 0, read)
+                                }
+                            } }
+                            repo.importBackup(archive)
+                        } else {
+                            repo.exportBackup(archive)
+                            requireNotNull(app.contentResolver.openOutputStream(uri, "w")) { "Cannot save backup" }.use { output ->
+                                archive.inputStream().use { it.copyTo(output) }
+                            }
+                            0
+                        }
+                    } finally { archive.delete() }
+                }
+                if (restore) loadPacks()
+                notify(if (restore) "Restored $count packs. Your existing collections are kept." else "Backup saved. Keep this file outside the app before uninstalling.")
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (_: Exception) {
+                notify(if (restore) "Could not restore this backup. Check the file and available storage; your library is kept."
+                    else "Backup could not be saved. Choose another location and check available storage.")
+            } finally { _localBackupBusy.value = false }
+        }
     }
 
     // Test seams: the batch engine's photo loading and cut-out, swappable in
