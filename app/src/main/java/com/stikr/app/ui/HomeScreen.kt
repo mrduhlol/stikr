@@ -15,7 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PersonOutline
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
@@ -74,7 +74,7 @@ fun HomeScreen(
                 Image(painterResource(R.drawable.stikr_ghost),"stikr",Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)))
                 Spacer(Modifier.weight(1f))
                 SoundToggle()
-                IconButton(onClick = onProfile) { Icon(Icons.Default.PersonOutline, "Account and backup", tint = palette.ink) }
+                IconButton(onClick = onProfile) { Icon(Icons.Default.Person, "Account and backup", tint = palette.ink) }
             } }
             item(span={GridItemSpan(maxLineSpan)},key="intro") { Column(Modifier.padding(top=14.dp,bottom=10.dp)) { Text("Your little collections.",fontSize=30.sp,lineHeight=34.sp,fontWeight=FontWeight.SemiBold,letterSpacing=(-.8).sp,color=palette.ink); Text("Photos, words, and a little personality.",style=MaterialTheme.typography.bodyMedium,color=palette.muted,modifier=Modifier.padding(top=10.dp)) } }
             item(span={GridItemSpan(maxLineSpan)},key="create") { Row(Modifier.padding(bottom=16.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
