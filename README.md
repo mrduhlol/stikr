@@ -4,7 +4,7 @@
 
 Turn a photo into a sticker on your phone. Cut out the subject, add an outline
 and a caption, then import a pack into WhatsApp or share a sticker anywhere.
-No required account or watermark. Optional Google Drive backup keeps a copy of your collections.
+No account or watermark. Save and restore local backup files to keep your collections.
 
 ![Android 8.0+](docs/site/assets/badge-android.svg)
 ![On device](docs/site/assets/badge-local.svg)
@@ -24,7 +24,7 @@ Debug APKs are for local development and troubleshooting and are not distributed
 here. They have the same sticker features, with debugging enabled and extra
 tooling. If you previously installed a debug build, Android may require you to
 uninstall it before installing the normal app because the signing keys differ.
-Uninstalling deletes local packs. A completed optional Drive backup can be restored after reinstalling and connecting the same account.
+Uninstalling deletes local packs. A completed local backup saved outside the app can be restored after reinstalling.
 
 ---
 
@@ -40,8 +40,8 @@ Uninstalling deletes local packs. A completed optional Drive backup can be resto
 | **Make a batch** | Pick as many photos as you like. stikr makes a sticker from each one and splits the run into packs of at most 30, with a title and an author you set once. |
 | **Send it to WhatsApp** | Import a pack of 3–30 stickers through the standard sticker-pack contract. Works with WhatsApp and WhatsApp Business. |
 | **Share one anywhere** | Send a sticker as a PNG through Android's normal share sheet. |
-| **Keep it local** | No required sign-in, analytics, or telemetry. Editing works offline; cut-out requires Google Play services. Optional Google Drive backup uploads only after connection and a backup action or automatic-backup opt-in. |
-| **Keep your collections** | The profile icon opens optional Google connection, Back up now, Restore and Disconnect. See the [Google setup steps](docs/google-backup-setup.md); Cloud registration is required before connection works. |
+| **Keep it local** | No required sign-in, analytics, or telemetry. Editing works offline; cut-out requires Google Play services. Backups are local ZIP files saved with Android’s file picker; Stikr does not upload them. |
+| **Keep your collections** | The folder icon opens **Save backup file** and **Restore from file**. See the [local backup guide](docs/local-backup.md). No account, Cloud registration or subscription is needed. |
 
 Static stickers only. A tray-icon picker, multiple subjects,
 and emoji suggestions are not shipped. Photos come from the system photo picker;
@@ -57,7 +57,7 @@ stikr does not ask for storage permission.
 Every release uses the same signing key, `keystore/release.p12`, so the next
 release installs over the one you have. If you installed a debug build,
 uninstall it first. Android rejects updates with a different signature.
-Uninstalling removes local packs. Complete a Google Drive backup first if you want to restore the library after reinstalling.
+Uninstalling removes local packs. Save a local backup to Downloads first if you want to restore the library after reinstalling.
 
 [Installation and update details](https://mrduhlol.github.io/stikr/install.html)
 
