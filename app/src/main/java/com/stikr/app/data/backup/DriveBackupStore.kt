@@ -12,7 +12,8 @@ import java.net.URL
 import java.net.URLEncoder
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import java.util.UUID
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /** Google Drive v3 appDataFolder transport. The caller supplies an OAuth token with drive.appdata. */
 class DriveBackupStore {
@@ -23,26 +24,44 @@ class DriveBackupStore {
         val metadata = JSONObject().put("name", FILE_NAME).apply {
             if (existing == null) put("parents", JSONArray().put("appDataFolder"))
         }
-        val boundary = "stikr-${UUID.randomUUID()}"
-        val url = if (existing == null) "$UPLOAD_ENDPOINT?uploadType=multipart" else "$UPLOAD_ENDPOINT/${encode(existing)}?uploadType=multipart"
-        val connection = open(url, accessToken, if (existing == null) "POST" else "PATCH").apply {
+        // Resumable sessions support libraries larger than Drive's small multipart uploads.
+        val endpoint = if (existing == null) UPLOAD_ENDPOINT else "$UPLOAD_ENDPOINT/${encode(existing)}"
+        val initialization = open("$endpoint?uploadType=resumable", accessToken, if (existing == null) "POST" else "PATCH")
+        val session = try {
+            val bytes = metadata.toString().toByteArray(Charsets.UTF_8)
+            initialization.doOutput = true
+            initialization.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+            initialization.setRequestProperty("X-Upload-Content-Type", "application/zip")
+            initialization.setRequestProperty("X-Upload-Content-Length", archive.length().toString())
+            initialization.setFixedLengthStreamingMode(bytes.size)
+            initialization.outputStream.use { it.write(bytes) }
+            checked(initialization)
+            requireNotNull(initialization.getHeaderField("Location")) { "Drive did not return an upload session" }
+        } finally { initialization.disconnect() }
+        val sessionUrl = URL(session)
+        require(sessionUrl.protocol == "https" && sessionUrl.host == "www.googleapis.com") { "Invalid Drive upload session" }
+        currentCoroutineContext().ensureActive()
+        val connection = open(session, accessToken, "PUT").apply {
             doOutput = true
-            setChunkedStreamingMode(BUFFER_SIZE)
-            setRequestProperty("Content-Type", "multipart/related; boundary=$boundary")
+            setFixedLengthStreamingMode(archive.length())
+            setRequestProperty("Content-Type", "application/zip")
         }
         try {
-            BufferedOutputStream(connection.outputStream).use { out ->
-                out.write("--$boundary\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n".toByteArray())
-                out.write(metadata.toString().toByteArray(Charsets.UTF_8))
-                out.write("\r\n--$boundary\r\nContent-Type: application/zip\r\n\r\n".toByteArray())
-                BufferedInputStream(FileInputStream(archive)).use { input -> input.copyTo(out, BUFFER_SIZE) }
-                out.write("\r\n--$boundary--\r\n".toByteArray())
+            val coroutine = currentCoroutineContext()
+            BufferedOutputStream(connection.outputStream).use { output ->
+                BufferedInputStream(FileInputStream(archive)).use { input ->
+                    val buffer = ByteArray(BUFFER_SIZE)
+                    while (true) {
+                        coroutine.ensureActive()
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        output.write(buffer, 0, count)
+                    }
+                }
             }
             checked(connection)
             return System.currentTimeMillis()
-        } finally {
-            connection.disconnect()
-        }
+        } finally { connection.disconnect() }
     }
 
     /** Returns false when this Drive account has no saved backup. */
@@ -105,6 +124,7 @@ class DriveBackupStore {
 
     private fun open(url: String, token: String, method: String): HttpURLConnection =
         (URL(url).openConnection() as HttpURLConnection).apply {
+            instanceFollowRedirects = false
             requestMethod = method
             connectTimeout = CONNECT_TIMEOUT_MS
             readTimeout = READ_TIMEOUT_MS
