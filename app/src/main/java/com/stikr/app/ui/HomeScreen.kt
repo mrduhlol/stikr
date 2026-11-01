@@ -48,9 +48,9 @@ fun HomeScreen(
     onStartBatch: (String, String, List<Uri>, Boolean) -> Unit,
     onShowTour: () -> Unit,
     onSettings: () -> Unit = {},
-    onProfile: () -> Unit = {},
     onExportSingles: (String) -> Unit = {},
     onDeleteSingle: (String, String) -> Unit = { _, _ -> },
+    onProfile: () -> Unit = {},
 ) {
     val palette=Neo.palette
     var showCreateBatch by rememberSaveable { mutableStateOf(false) }
