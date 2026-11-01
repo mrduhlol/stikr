@@ -23,12 +23,17 @@ internal fun Modifier.stickerTextGestures(style: Style, selected: Int, enabled: 
     val current by rememberUpdatedState(style)
     val change by rememberUpdatedState(onStyle)
     return if (!enabled) this else pointerInput(selected) {
+        var preciseSize = current.textLayer(selected).captionSize.toFloat()
+        var emittedSize = preciseSize.roundToInt()
         detectTransformGestures { centroid, pan, zoom, rotation ->
             val parent = current
             val layer = parent.textLayer(selected)
             if (layer.caption.isNotBlank()) {
                 val oldSize = layer.captionSize.coerceAtLeast(8)
-                val newSize = (oldSize * zoom).roundToInt().coerceIn(8, 320)
+                if (oldSize != emittedSize) preciseSize = oldSize.toFloat()
+                preciseSize = (preciseSize * zoom).coerceIn(8f, 320f)
+                val newSize = preciseSize.roundToInt()
+                emittedSize = newSize
                 val scale = newSize.toFloat() / oldSize
                 val oldX = (layer.captionX ?: .5f) * size.width
                 val oldY = (layer.captionY ?: if (layer.captionPosition == com.stikr.app.render.StickerRenderer.CaptionPosition.TOP) .12f else .88f) * size.height
@@ -75,7 +80,7 @@ internal fun StickerTextPanel(style: Style, enabled: Boolean, selected: Int, onS
             }
         }
         Spacer(Modifier.height(14.dp))
-        NeoTextField(layer.caption, { value -> change(layer.copy(caption=value.take(500),captionX=layer.captionX?:.5f,captionY=layer.captionY?:.78f)) }, label="Your text", placeholder="Say something", enabled=enabled)
+        NeoTextField(layer.caption, { value -> change(layer.copy(caption=value.take(500),captionX=layer.captionX?:.5f,captionY=layer.captionY?:.78f)) }, label="Your text", placeholder="Say something", enabled=enabled, singleLine=false)
         Spacer(Modifier.height(22.dp))
         Text("Text editing", style=MaterialTheme.typography.titleMedium,color=palette.ink)
         Spacer(Modifier.height(14.dp))
@@ -102,6 +107,21 @@ internal fun StickerTextPanel(style: Style, enabled: Boolean, selected: Int, onS
             NeoOutlinedButton("Re-centre",{change(layer.copy(captionX=.5f,captionY=.5f))},modifier=Modifier.weight(1f))
             NeoOutlinedButton("Reset rotation",{change(layer.copy(captionRotation=0f))},modifier=Modifier.weight(1f))
         }
+        Spacer(Modifier.height(10.dp))
+        NeoOutlinedButton("Fit text to canvas", {
+            val paint=android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                typeface=com.stikr.app.render.StickerTypography.typeface(layer.captionFont,layer.captionBold,layer.captionItalic)
+                textSize=layer.captionSize.toFloat()
+            }
+            val lines=layer.caption.split('\n')
+            val w=lines.maxOfOrNull { paint.measureText(it) } ?: 1f
+            val h=(paint.fontMetrics.descent-paint.fontMetrics.ascent)*1.1f*lines.size
+            val angle=layer.captionRotation*PI.toFloat()/180f
+            val width=abs(w*cos(angle))+abs(h*sin(angle))+paint.textSize*.36f
+            val height=abs(w*sin(angle))+abs(h*cos(angle))+paint.textSize*.24f
+            val size=(layer.captionSize*min(448f/width.coerceAtLeast(1f),448f/height.coerceAtLeast(1f))).roundToInt().coerceIn(8,320)
+            change(layer.copy(captionSize=size,captionX=.5f,captionY=.5f))
+        },enabled=enabled)
         Spacer(Modifier.height(10.dp))
         NeoOutlinedButton("Delete text",{
             if(selected==0) { onStyle(style.copy(caption="")); onSelected(0) }
