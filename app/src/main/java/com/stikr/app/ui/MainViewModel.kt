@@ -57,6 +57,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val packsRoot = File(app.filesDir, "packs")
     private val repo = PackRepository(packsRoot)
+    private val backupController = lazy { com.stikr.app.backup.GoogleBackupController(app, repo) }
+    val googleBackup: com.stikr.app.backup.GoogleBackupController get() = backupController.value
+
+    override fun onCleared() {
+        if (backupController.isInitialized()) backupController.value.close()
+        super.onCleared()
+    }
 
     // Test seams: the batch engine's photo loading and cut-out, swappable in
     // unit tests. Production uses the real photo picker and ML Kit.
