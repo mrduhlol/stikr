@@ -67,10 +67,14 @@ Main page renders passed at 390/1440px and final 320/1440px, without horizontal
 overflow. Pixel checks found visible ASCII and zero non-grey canvas pixels. The demo
 passed 320px interactions and 390px rendering, including 12 fonts, pinch scaling,
 photo selection, Canvas PNG save, parent messaging, origin rejection and URL cleanup.
-Node syntax and static path scans passed. Extended 728px demo/headless integration
-captures exceeded the preview service's 20-second load limit, so full desktop demo
-visual validation remains a known limit. Its source review passed.
+Node syntax and static path scans passed. Extended 728px raw-asset demo/headless
+captures exceeded the preview service's 20-second load limit. Subsequent published
+website captures passed at 390px and 768px, and the published text-editor demo
+rendered at 1440px, all without console errors. Full desktop pack-edit interaction
+was not driven by these published-frame captures. Its source review passed.
 
-Verdict: ready for the public download page, with the extended desktop demo capture
-limit recorded. GitHub Pages deployment and public page/demo responses are checked
-separately at release. The native APK is unchanged by these website files.
+Verdict: ready for the public download page. The raw-asset preview timeout and
+desktop pack-edit interaction scope are recorded above. GitHub Pages deployment
+succeeded. Public HTML, artwork code, demo navigation, fonts and privacy content
+match source. The downloaded page and demo return HTTP 200. The native APK is
+unchanged by these website files.
