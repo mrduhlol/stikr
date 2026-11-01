@@ -4,6 +4,11 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -192,6 +197,10 @@ fun NeoButton(
                 shadowOffset = if (enabled) shadow else 0.dp,
                 press = press,
             )
+            .graphicsLayer { scaleX = 1f - press.value * .02f; scaleY = scaleX }
+            .clip(shape)
+            .background(Brush.linearGradient(listOf(face, if (fill == palette.cherry) Color(0xFF232B20) else face)))
+            .border(1.dp, palette.edgeFor(face), shape)
             .clickable(
                 interactionSource = interaction,
                 indication = null,
@@ -345,7 +354,7 @@ fun NeoSegmented(
             .height(IntrinsicSize.Min)
             .neoFrame(
                 fill = palette.card,
-                borderColor = palette.ink,
+                borderColor = palette.edgeFor(palette.card),
                 shadowColor = palette.shadow,
                 shape = NeoShapes.control,
                 shadowOffset = NeoDimens.shadowSmall,
@@ -359,7 +368,7 @@ fun NeoSegmented(
                     Modifier
                         .width(NeoDimens.border)
                         .fillMaxHeight()
-                        .background(palette.ink),
+                        .background(palette.edgeFor(palette.card)),
                 )
             }
             val selected = index == selectedIndex
@@ -367,7 +376,7 @@ fun NeoSegmented(
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = NeoDimens.touch)
-                    .then(if (selected) Modifier.background(palette.ink) else Modifier)
+                    .then(if (selected) Modifier.background(palette.cherry) else Modifier)
                     .selectable(selected = selected, role = Role.RadioButton) {
                         if (!selected) haptics(NeoHaptic.Tap)
                         onSelect(index)
@@ -378,7 +387,7 @@ fun NeoSegmented(
                 Text(
                     text = option,
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (selected) palette.paper else palette.ink,
+                    color = if (selected) palette.onCherry else palette.ink,
                 )
             }
         }
@@ -397,69 +406,21 @@ fun NeoSwitch(
     enabled: Boolean = true,
     contentDescription: String? = null,
 ) {
-    val palette = Neo.palette
-    val haptics = rememberHaptics()
-    val position by animateFloatAsState(
-        targetValue = if (checked) 1f else 0f,
-        animationSpec = tween(NeoMotion.release),
-        label = "neo-switch",
+    androidx.compose.material3.Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        enabled = enabled,
+        modifier = modifier.heightIn(min = 48.dp).then(
+            if (contentDescription != null) Modifier.semantics { this.contentDescription = contentDescription } else Modifier,
+        ),
+        colors = androidx.compose.material3.SwitchDefaults.colors(
+            checkedThumbColor = Color(0xFFD3DFB6),
+            checkedTrackColor = Color(0xFF3A492A),
+            uncheckedThumbColor = Color(0xFFA4AC9B),
+            uncheckedTrackColor = Color(0xFF22291E),
+            uncheckedBorderColor = Color(0xFF536046),
+        ),
     )
-    val trackWidth = 72.dp
-    val thumb = 26.dp
-    val inset = 5.dp
-    val travel = trackWidth - thumb - inset * 2
-    val track = if (checked) palette.cherry else palette.creamDim
-
-    Box(
-        modifier = modifier
-            .heightIn(min = NeoDimens.touch)
-            .toggleable(
-                value = checked,
-                enabled = enabled,
-                role = Role.Switch,
-                onValueChange = {
-                    haptics(NeoHaptic.Tap)
-                    onCheckedChange(it)
-                },
-            )
-            .then(if (contentDescription != null) Modifier.semantics { this.contentDescription = contentDescription } else Modifier)
-            .alpha(if (enabled) 1f else 0.45f),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(width = trackWidth, height = thumb + inset * 2)
-                .neoFrame(
-                    fill = track,
-                    borderColor = palette.ink,
-                    shadowColor = palette.shadow,
-                    shape = NeoShapes.control,
-                    shadowOffset = NeoDimens.shadowSmall,
-                ),
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            Text(
-                text = if (checked) "ON" else "OFF",
-                style = MaterialTheme.typography.labelSmall,
-                color = if (checked) palette.onCherry else palette.ink,
-                modifier = Modifier
-                    .align(if (checked) Alignment.CenterStart else Alignment.CenterEnd)
-                    .padding(horizontal = 9.dp),
-            )
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset(((inset + travel * position).toPx()).roundToInt(), 0) }
-                    .size(thumb)
-                    .neoFrame(
-                        fill = palette.card,
-                        borderColor = palette.ink,
-                        shadowColor = palette.shadow,
-                        shape = NeoShapes.tag,
-                        shadowOffset = 0.dp,
-                    ),
-            )
-        }
-    }
 }
 
 /** A colour swatch: the selected one sits sunk into its shadow, checked. */
@@ -494,7 +455,7 @@ fun NeoSwatch(
                 .size(40.dp)
                 .neoFrame(
                     fill = fill,
-                    borderColor = palette.ink,
+                    borderColor = palette.edgeFor(palette.card),
                     shadowColor = palette.shadow,
                     shape = NeoShapes.control,
                     shadowOffset = NeoDimens.shadowSmall,
@@ -556,7 +517,7 @@ private fun NeoSliderThumb(interaction: MutableInteractionSource) {
             .size(width = 24.dp, height = 36.dp)
             .neoFrame(
                 fill = palette.cherry,
-                borderColor = palette.ink,
+                borderColor = palette.edgeFor(palette.card),
                 shadowColor = palette.shadow,
                 shape = NeoShapes.tag,
                 shadowOffset = NeoDimens.shadowSmall,
@@ -569,15 +530,15 @@ private fun NeoSliderThumb(interaction: MutableInteractionSource) {
 @Composable
 private fun NeoSliderTrack(state: SliderState) {
     val palette = Neo.palette
-    val ink = palette.ink
-    val tick = palette.ink.copy(alpha = 0.35f)
+    val ink = palette.purple
+    val tick = palette.muted.copy(alpha = 0.35f)
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(16.dp)
             .neoFrame(
                 fill = palette.card,
-                borderColor = palette.ink,
+                borderColor = palette.edgeFor(palette.card),
                 shadowColor = palette.shadow,
                 shape = NeoShapes.tag,
                 shadowOffset = 0.dp,
@@ -601,7 +562,7 @@ private fun NeoSliderTrack(state: SliderState) {
 fun NeoTag(
     text: String,
     modifier: Modifier = Modifier,
-    fill: Color = Neo.palette.butter,
+    fill: Color = Neo.palette.card,
     rotation: Float = 0f,
 ) {
     val palette = Neo.palette
@@ -672,7 +633,7 @@ fun NeoSectionHeader(
             Modifier
                 .fillMaxWidth()
                 .height(NeoDimens.border)
-                .background(palette.ink),
+                .background(palette.edgeFor(palette.card)),
         )
     }
 }
@@ -684,13 +645,13 @@ fun NeoStepLabel(number: Int, title: String, modifier: Modifier = Modifier) {
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
-                .background(palette.ink, NeoShapes.tag)
+                .background(palette.cherry, NeoShapes.tag)
                 .padding(horizontal = 6.dp, vertical = 2.dp),
         ) {
             Text(
                 text = number.toString().padStart(2, '0'),
                 style = MaterialTheme.typography.labelMedium,
-                color = palette.paper,
+                color = palette.ink,
             )
         }
         Spacer(Modifier.width(10.dp))
@@ -733,32 +694,15 @@ fun NeoWordmark(modifier: Modifier = Modifier, trailing: (@Composable RowScope.(
             .heightIn(min = 56.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .rotate(-6f)
-                .size(42.dp)
-                .neoFrame(
-                    fill = palette.purple,
-                    borderColor = palette.ink,
-                    shadowColor = palette.shadow,
-                    shape = NeoShapes.control,
-                    shadowOffset = NeoDimens.shadowSmall,
-                    clipContent = true,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            // The launcher foreground carries adaptive-icon padding; scale past it.
-            Image(
-                painter = painterResource(R.mipmap.ic_launcher_foreground),
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.requiredSize(66.dp),
-            )
-        }
+        Image(
+            painter = painterResource(R.drawable.stikr_ghost),
+            contentDescription = null,
+            modifier = Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)),
+        )
         Spacer(Modifier.width(14.dp))
         Text(
             text = "stikr",
-            style = TextStyle(fontFamily = Anton, fontSize = 34.sp, lineHeight = 36.sp),
+            style = MaterialTheme.typography.headlineLarge,
             color = palette.ink,
             modifier = Modifier.semantics { heading() },
         )
@@ -801,31 +745,32 @@ fun NeoDialog(
                     .fillMaxWidth()
                     .neoFrame(
                         fill = palette.card,
-                        borderColor = palette.ink,
+                        borderColor = palette.edgeFor(palette.card),
                         shadowColor = palette.shadow,
-                        shape = NeoShapes.card,
+                        shape = RoundedCornerShape(22.dp),
                         shadowOffset = NeoDimens.shadowLarge,
                         clipContent = true,
-                    ),
+                    )
+                    .background(Brush.linearGradient(listOf(Color(0xFF20251F), Color(0xFF171B17), Color(0xFF1B2018)))),
             ) {
-                if (kicker != null) {
+                if (!kicker.isNullOrBlank()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(band)
+                            .background(palette.card)
                             .padding(horizontal = 20.dp, vertical = 11.dp),
                     ) {
                         Text(
                             text = kicker,
                             style = MaterialTheme.typography.labelMedium,
-                            color = palette.contentFor(band),
+                            color = palette.muted,
                         )
                     }
                     Box(
                         Modifier
                             .fillMaxWidth()
                             .height(NeoDimens.border)
-                            .background(palette.ink),
+                            .background(palette.edgeFor(palette.card)),
                     )
                 }
                 Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 22.dp)) {
@@ -904,8 +849,8 @@ fun NeoTextField(
                         .fillMaxWidth()
                         .heightIn(min = 52.dp)
                         .neoFrame(
-                            fill = if (enabled) palette.card else palette.creamDim,
-                            borderColor = if (enabled) palette.ink else palette.ink.copy(alpha = 0.35f),
+                            fill = if (enabled) Color(0xFF10160F) else palette.creamDim,
+                            borderColor = if (focused) Color(0xFF9AAA7C) else Color(0xFF38422F),
                             shadowColor = palette.purple,
                             shape = NeoShapes.control,
                             shadowOffset = if (focused) NeoDimens.shadowSmall else 0.dp,
@@ -932,8 +877,8 @@ fun NeoSnackbar(data: SnackbarData, modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .padding(end = NeoDimens.shadow, bottom = NeoDimens.shadow)
             .neoFrame(
-                fill = palette.ink,
-                borderColor = palette.ink,
+                fill = palette.card,
+                borderColor = palette.edgeFor(palette.card),
                 shadowColor = palette.cherry,
                 shape = NeoShapes.control,
                 shadowOffset = NeoDimens.shadow,
@@ -944,13 +889,13 @@ fun NeoSnackbar(data: SnackbarData, modifier: Modifier = Modifier) {
         Box(
             Modifier
                 .size(10.dp)
-                .background(palette.butter),
+                .background(palette.purple),
         )
         Spacer(Modifier.width(12.dp))
         Text(
             text = data.visuals.message,
             style = MaterialTheme.typography.labelLarge,
-            color = palette.paper,
+            color = palette.ink,
         )
     }
 }

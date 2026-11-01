@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.stikr.app.R
 
-/** Plum surfaces, soft violet and olive accents, and readable native sans typography. */
+/** Graphite surfaces, forest and muted olive accents, and readable native sans typography. */
 @Immutable
 data class NeoPalette(
     /** Screen background: warm cream. */
@@ -64,9 +64,9 @@ data class NeoPalette(
      * outlined in cream.
      */
     fun edgeFor(fill: Color): Color = when (fill) {
-        cherry -> ink
-        purple -> ink
-        else -> if (fill.luminance() > 0.4f) onAccent else ink
+        cherry -> Color(0xFF677257)
+        purple -> Color(0xFF677257)
+        else -> if (fill.luminance() > 0.4f) onAccent else Color(0xFF414A3B)
     }
 
     /** Text colour for content sitting on [fill]. */
@@ -77,7 +77,7 @@ data class NeoPalette(
     }
 }
 
-private val Ink = Color(0xFF211B21)
+private val Ink = Color(0xFF20241D)
 
 private val LightPalette = NeoPalette(
     paper = Color(0xFFF1EDE7),
@@ -86,13 +86,13 @@ private val LightPalette = NeoPalette(
     shadow = Ink,
     muted = Color(0xFF5E5A52),
     butter = Color(0xFFD5F277),
-    cyan = Color(0xFF9EDDE6),
-    green = Color(0xFF9CE4A4),
+    cyan = Color(0xFFA9B6A1),
+    green = Color(0xFFBCC99B),
     pink = Color(0xFFF3CDDA),
-    cherry = Color(0xFFD5F277),
-    onCherry = Color(0xFF263113),
+    cherry = Color(0xFF303B29),
+    onCherry = Color(0xFFE1EBCD),
     cherryInk = Color(0xFFD5F277),
-    purple = Color(0xFF723AF4),
+    purple = Color(0xFF65754E),
     onPurple = Color(0xFFFFFFFF),
     creamDim = Color(0xFFE4DDD2),
     onAccent = Ink,
@@ -104,21 +104,21 @@ private val LightPalette = NeoPalette(
  * their brand hexes so they read as the same stickers.
  */
 private val DarkPalette = NeoPalette(
-    paper = Color(0xFF201824),
-    card = Color(0xFF302637),
-    ink = Color(0xFFFFF9FF),
-    shadow = Color(0xFFFFF9FF),
-    muted = Color(0xFFC4B5CF),
+    paper = Color(0xFF0C0E0D),
+    card = Color(0xFF20251F),
+    ink = Color(0xFFEEEDE7),
+    shadow = Color(0xFF000000),
+    muted = Color(0xFFA5ADA0),
     butter = Color(0xFFD5F277),
-    cyan = Color(0xFF9EDDE6),
-    green = Color(0xFF9CE4A4),
+    cyan = Color(0xFFA9B6A1),
+    green = Color(0xFFBCC99B),
     pink = Color(0xFFF3CDDA),
-    cherry = Color(0xFFD5F277),
-    onCherry = Color(0xFF263113),
+    cherry = Color(0xFF303B29),
+    onCherry = Color(0xFFE1EBCD),
     cherryInk = Color(0xFFD5F277),
-    purple = Color(0xFF723AF4),
+    purple = Color(0xFF65754E),
     onPurple = Color(0xFFFFFFFF),
-    creamDim = Color(0xFF392D42),
+    creamDim = Color(0xFF171D16),
     onAccent = Ink,
 )
 
@@ -139,10 +139,10 @@ val SpaceMono = FontFamily(Font(R.font.space_mono_bold, FontWeight.Bold))
 private fun scheme(p: NeoPalette, dark: Boolean): ColorScheme {
     val base = if (dark) darkColorScheme() else lightColorScheme()
     return base.copy(
-        primary = p.cherry,
-        onPrimary = p.onCherry,
-        primaryContainer = p.butter,
-        onPrimaryContainer = p.onAccent,
+        primary = p.green,
+        onPrimary = p.onAccent,
+        primaryContainer = p.cherry,
+        onPrimaryContainer = p.onCherry,
         secondary = p.green,
         onSecondary = p.onAccent,
         secondaryContainer = p.creamDim,
@@ -158,8 +158,8 @@ private fun scheme(p: NeoPalette, dark: Boolean): ColorScheme {
         surfaceContainer = p.card,
         surfaceContainerHigh = p.card,
         surfaceContainerHighest = p.creamDim,
-        outline = p.ink,
-        outlineVariant = p.ink.copy(alpha = 0.35f),
+        outline = Color(0xFF677257),
+        outlineVariant = Color(0xFF414A3B),
         error = Color(0xFFEEA1AE),
         onError = Color(0xFF391923),
         errorContainer = p.pink,

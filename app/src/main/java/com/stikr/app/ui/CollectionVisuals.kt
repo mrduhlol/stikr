@@ -47,10 +47,11 @@ import java.util.*
 import kotlin.math.*
 
 /** The collection's ambient surface also works behind dialogs and the pack screen. */
-fun Modifier.collectionBackground(): Modifier = background(Color(0xFF1C1621)).drawWithCache {
-    val violet = Brush.radialGradient(listOf(Color(0x88765384), Color.Transparent), Offset(size.width * .5f, 0f), size.height * .72f)
-    val olive = Brush.radialGradient(listOf(Color(0x55647342), Color.Transparent), Offset(size.width * .5f, size.height * 1.12f), size.height * .65f)
-    onDrawBehind { drawRect(violet); drawRect(olive) }
+fun Modifier.collectionBackground(): Modifier = background(
+    Brush.linearGradient(listOf(Color(0xFF141715), Color(0xFF0C0E0D), Color(0xFF12140F))),
+).drawWithCache {
+    val forest = Brush.radialGradient(listOf(Color(0x33374032), Color.Transparent), Offset(size.width * .5f, 0f), size.height * .72f)
+    onDrawBehind { drawRect(forest) }
 }
 
 private fun coverFile(pack: StickerPack, root: File): File? =
@@ -105,7 +106,7 @@ fun PackCollectionCard(pack: StickerPack, modifier: Modifier = Modifier, onClick
 }
 
 @Composable
-fun WhatsAppMark(modifier: Modifier = Modifier, color: Color = Color(0xFFD5F277)) {
+fun WhatsAppMark(modifier: Modifier = Modifier, color: Color = Color(0xFFBCC99B)) {
     val path = remember { PathParser().parsePathString("M20.5 3.5A11.9 11.9 0 0 0 1.7 17.8L0 24l6.3-1.7A12 12 0 0 0 24 11.9a11.8 11.8 0 0 0-3.5-8.4ZM12 21.9a10 10 0 0 1-5.1-1.4l-.4-.2-3.7 1 1-3.6-.3-.4A10 10 0 1 1 12 21.9Zm5.5-7.5c-.3-.1-1.8-.9-2-.9-.3-.1-.5-.1-.7.2l-.9 1.1c-.2.2-.3.2-.6.1a8.2 8.2 0 0 1-4.1-3.6c-.3-.5.3-.5.8-1.4.1-.2.1-.4 0-.6L9.1 7c-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.6.1-.8.4a3.3 3.3 0 0 0-1 2.4c0 1.4 1 2.8 1.2 3 .1.2 2.1 3.3 5.1 4.6 1.9.8 2.7.9 3.6.8.6-.1 1.8-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.2-.3-.3-.6-.4Z").toPath() }
     Canvas(modifier) { withTransform({ scale(size.width/24f,size.height/24f,Offset.Zero) }) { drawPath(path,color) } }
 }
@@ -115,6 +116,10 @@ internal fun slideConfirmed(position: Float, travel: Float): Boolean = travel > 
 /** A drag-only primary action; TalkBack exposes an explicit confirmation action. */
 @Composable
 fun SlideExport(enabled: Boolean = true, busy: Boolean = false, onConfirm: () -> Unit, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val reducedMotion = remember(context) {
+        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+    }
     var width by remember { mutableFloatStateOf(0f) }
     var position by remember { mutableFloatStateOf(0f) }
     val knob = with(LocalDensity.current) { 52.dp.toPx() }
@@ -123,7 +128,7 @@ fun SlideExport(enabled: Boolean = true, busy: Boolean = false, onConfirm: () ->
     val active = enabled && !busy
     val latestConfirm by rememberUpdatedState(onConfirm)
     LaunchedEffect(active) { if (!active) position=0f }
-    Box(modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(32.dp)).background(Color(0xFF352B3D)).onSizeChanged { width=it.width.toFloat() }
+    Box(modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(32.dp)).background(Color(0xFF232B20)).onSizeChanged { width=it.width.toFloat() }
         .semantics(mergeDescendants=true) {
             contentDescription = if(busy) "Preparing pack for WhatsApp" else "Slide to add to WhatsApp"
             if(!active) disabled()
@@ -136,9 +141,36 @@ fun SlideExport(enabled: Boolean = true, busy: Boolean = false, onConfirm: () ->
                 onDragEnd={ val confirmed=slideConfirmed(position,travel); position=0f; if(confirmed) latestConfirm() },
             )
         }, contentAlignment=Alignment.Center) {
-        Text(if(busy) "Preparing pack…" else "Slide to add to WhatsApp",fontSize=12.sp,color=Color(0xFFE7DDED).copy(alpha=if(active) 1f else .5f),modifier=Modifier.padding(start=34.dp,end=28.dp))
+        // Pure drawing beneath the content: never adds a second input or semantics layer.
+        Canvas(Modifier.matchParentSize()) {
+            if (active && position > 0f && travel > 0f) {
+                val progress = (position / travel).coerceIn(0f, 1f)
+                val front = (inset + position + knob * .55f).coerceAtMost(size.width)
+                val amplitude = if (reducedMotion) 0f else 12.dp.toPx() * sin(progress * PI).toFloat()
+                val liquid = Path().apply {
+                    moveTo(0f, 0f)
+                    lineTo(front, 0f)
+                    cubicTo(front - amplitude, size.height * .22f,
+                        front + amplitude, size.height * .34f, front + amplitude * .4f, size.height * .5f)
+                    cubicTo(front - amplitude, size.height * .67f,
+                        front + amplitude, size.height * .85f, front, size.height)
+                    lineTo(0f, size.height)
+                    close()
+                }
+                drawPath(liquid, Brush.horizontalGradient(listOf(Color(0xFF3D4E2F), Color(0xFF75885A))))
+                if (!reducedMotion) {
+                    repeat(3) { index ->
+                        val radius = (2f + index) * density * sin(progress * PI).toFloat()
+                        drawCircle(Color(0xFFA9BD83).copy(alpha = .18f + progress * .16f),
+                            radius, Offset(front + (12f + index * 9f) * density,
+                                size.height * (.25f + index * .24f)))
+                    }
+                }
+            }
+        }
+        Text(if(busy) "Preparing pack…" else "Slide to add to WhatsApp",fontSize=12.sp,color=Color(0xFFE1EBCD).copy(alpha=if(active) 1f else .5f),modifier=Modifier.padding(start=34.dp,end=28.dp))
         WhatsAppMark(Modifier.align(Alignment.CenterEnd).padding(end=17.dp).size(24.dp))
-        Box(Modifier.align(Alignment.CenterStart).offset { IntOffset((inset+position).roundToInt(),0) }.size(52.dp).background(if(active) Color(0xFFD5F277) else Color(0xFF8A877A),RoundedCornerShape(26.dp)),contentAlignment=Alignment.Center) {
+        Box(Modifier.align(Alignment.CenterStart).offset { IntOffset((inset+position).roundToInt(),0) }.size(52.dp).background(if(active) Color(0xFFBCC99B) else Color(0xFF646C5B),RoundedCornerShape(26.dp)),contentAlignment=Alignment.Center) {
             Icon(Icons.AutoMirrored.Filled.ArrowForward,null,tint=Color(0xFF263113))
         }
     }
@@ -157,7 +189,7 @@ fun PackAddedCelebration(pack: StickerPack, onFinished: () -> Unit) {
         if(!reduced) { pop.animateTo(1f,tween(180)); turn.animateTo(360f,tween(1350,easing=LinearEasing)); burst.animateTo(1f,tween(1100)) }
         delay(if(reduced) 1600 else 700); finish()
     }
-    Box(Modifier.fillMaxSize().background(Color(0xED17101D)),contentAlignment=Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(Color(0xED0C0E0D)),contentAlignment=Alignment.Center) {
         Column(horizontalAlignment=Alignment.CenterHorizontally,modifier=Modifier.padding(32.dp).widthIn(max=330.dp)) {
             Text("Pack added",style=MaterialTheme.typography.headlineMedium,color=Color(0xFFF3F7E9),modifier=Modifier.padding(bottom=28.dp).semantics { liveRegion=LiveRegionMode.Polite })
             val back=turn.value in 90f..270f

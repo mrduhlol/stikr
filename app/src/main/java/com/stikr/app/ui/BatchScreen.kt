@@ -377,13 +377,14 @@ fun CreateBatchDialog(
 
     NeoDialog(
         onDismiss = onDismiss,
-        title = "Create a sticker pack",
+        title = "A new collection.",
         body = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                Text("Choose a name. Then pick your photos.", style = MaterialTheme.typography.bodyMedium, color = Neo.palette.muted)
                 NeoTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = "Title",
+                    label = "Pack title",
                 )
                 NeoTextField(
                     value = author,
@@ -391,7 +392,10 @@ fun CreateBatchDialog(
                     label = "Author",
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Remove background", modifier = Modifier.weight(1f), color = Neo.palette.ink)
+                    Column(Modifier.weight(1f)) {
+                        Text("Remove background", color = Neo.palette.ink)
+                        Text("Keep the full photo by default", style = MaterialTheme.typography.bodySmall, color = Neo.palette.muted)
+                    }
                     NeoSwitch(
                         checked = removeBackground,
                         onCheckedChange = { removeBackground = it },

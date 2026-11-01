@@ -42,7 +42,7 @@ class TourScreenRenderTest : ScreenRenderHarness() {
                 TourOverlay(onDone = {})
             }
         }
-        compose.onNodeWithText("Next", ignoreCase = true).performClick()
+        compose.onNodeWithText("Continue", ignoreCase = true).performClick()
         settle()
         capture("tour-2-light")
     }
@@ -54,8 +54,8 @@ class TourScreenRenderTest : ScreenRenderHarness() {
                 TourOverlay(onDone = {})
             }
         }
-        compose.onNodeWithText("Next", ignoreCase = true).performClick()
-        compose.onNodeWithText("Next", ignoreCase = true).performClick()
+        compose.onNodeWithText("Continue", ignoreCase = true).performClick()
+        compose.onNodeWithText("Continue", ignoreCase = true).performClick()
         settle()
         capture("tour-3-light")
     }
@@ -79,12 +79,23 @@ class TourScreenRenderTest : ScreenRenderHarness() {
                 TourOverlay(onDone = { done = true })
             }
         }
-        compose.onNodeWithText("Next", ignoreCase = true).performClick()
-        compose.onNodeWithText("Next", ignoreCase = true).performClick()
-        assertFalse("Next only moves the tour along", done)
+        compose.onNodeWithText("Continue", ignoreCase = true).performClick()
+        compose.onNodeWithText("Continue", ignoreCase = true).performClick()
+        assertFalse("Continue only moves the tour along", done)
         compose.onNodeWithText("Get started", ignoreCase = true).performClick()
         compose.waitForIdle()
         assertTrue(done)
+    }
+
+    @Test
+    fun lastPageBackReturnsWithoutCompleting() {
+        var done = false
+        compose.setContent { StikrTheme { TourOverlay { done = true } } }
+        compose.onNodeWithText("Continue").performClick()
+        compose.onNodeWithText("Continue").performClick()
+        compose.onNodeWithText("Back").performClick()
+        compose.onNodeWithText("02 / 03").assertIsDisplayed()
+        assertFalse(done)
     }
 
     @Test
@@ -113,6 +124,6 @@ class TourScreenRenderTest : ScreenRenderHarness() {
         compose.waitForIdle()
         assertFalse("Back must not lose the tour", done)
         assertFalse("Back must not leave the tour", compose.activity.isFinishing)
-        compose.onNodeWithText("Nothing is uploaded. Ever.", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Turn little moments into stickers.", substring = true).assertIsDisplayed()
     }
 }
