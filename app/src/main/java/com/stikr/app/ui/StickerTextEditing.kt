@@ -142,7 +142,11 @@ internal fun StickerTextPanel(style: Style, enabled: Boolean, selected: Int, onS
         },enabled=enabled)
         Spacer(Modifier.height(10.dp))
         NeoOutlinedButton("Delete text",{
-            if(selected==0) { onStyle(style.copy(caption="")); onSelected(0) }
+            if(selected==0) {
+                val next=style.extraCaptions.firstOrNull()
+                onStyle(if(next==null) style.copy(caption="") else next.copy(outline=style.outline,outlineColor=style.outlineColor,roundedCorners=style.roundedCorners,extraCaptions=style.extraCaptions.drop(1)))
+                onSelected(0)
+            }
             else {onStyle(style.copy(extraCaptions=style.extraCaptions.filterIndexed { i,_->i!=selected-1 }));onSelected(0)}
         },enabled=enabled)
         Spacer(Modifier.height(12.dp))
