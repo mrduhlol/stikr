@@ -90,8 +90,8 @@ fun PackCollectionCard(pack: StickerPack, modifier: Modifier = Modifier, onClick
     val ink = Color(0xFF211B21)
     val date = remember(pack.createdAt) { SimpleDateFormat("MMM yyyy", Locale.ENGLISH).format(Date(pack.createdAt)).uppercase(Locale.ENGLISH) }
     val unique = pack.displayId.ifBlank { pack.id.filter { it.isLetterOrDigit() }.takeLast(5).uppercase(Locale.ENGLISH) }
-    Box(modifier.fillMaxWidth().background(tint).then(if (onClick != null) Modifier.clickable(onClickLabel = "Open ${pack.name}", onClick = onClick) else Modifier)) {
-        BoxWithConstraints {
+    BoxWithConstraints(modifier.fillMaxWidth().background(tint).then(if (onClick != null) Modifier.clickable(onClickLabel = "Open ${pack.name}", onClick = onClick) else Modifier)) {
+        val tabWidth = minOf(124.dp, maxWidth * .5f).coerceAtLeast(78.dp)
         val titleSize = if (maxWidth >= 240.dp) 42.sp else 29.sp
         Column(Modifier.padding(8.dp)) {
             Box(Modifier.fillMaxWidth().aspectRatio(3f/4f).background(tint.copy(alpha=.6f)).semantics { contentDescription = "${pack.name} thumbnail" }) {
@@ -108,8 +108,7 @@ fun PackCollectionCard(pack: StickerPack, modifier: Modifier = Modifier, onClick
                 Box(Modifier.size(27.dp).border(1.dp,ink), contentAlignment=Alignment.Center) { WhatsAppMark(Modifier.size(18.dp),ink) }
             }
         }
-        }
-        Column(Modifier.width(124.dp).background(tint, object: Shape {
+        Column(Modifier.width(tabWidth).background(tint, object: Shape {
             override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline = Outline.Generic(Path().apply { moveTo(0f,0f); lineTo(size.width,0f); lineTo(size.width,size.height*.76f); lineTo(size.width*.88f,size.height); lineTo(0f,size.height); close() })
         }).padding(start=10.dp,top=10.dp,end=8.dp,bottom=9.dp)) {
             Canvas(Modifier.fillMaxWidth().height(6.dp)) {
