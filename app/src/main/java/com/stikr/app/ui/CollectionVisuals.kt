@@ -69,13 +69,13 @@ private fun coverFile(pack: StickerPack, root: File): File? =
 
 /** Shared by home, pack details and the confirmed-success celebration. */
 @Composable
-fun PackCollectionCard(pack: StickerPack, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
+fun PackCollectionCard(pack: StickerPack, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null, coverResource: Int? = null) {
     val context = LocalContext.current
     remember(context) { StickerTypography.initialize(context); true }
     val root = File(context.filesDir, "packs")
     val file = coverFile(pack, root)
-    val bitmap by produceState<android.graphics.Bitmap?>(null, file, pack.contentVersion) {
-        value = withContext(Dispatchers.IO) { file?.let { runCatching { BitmapFactory.decodeFile(it.path, BitmapFactory.Options().apply { inSampleSize = 2 }) }.getOrNull() } }
+    val bitmap by produceState<android.graphics.Bitmap?>(null, file, pack.contentVersion, coverResource) {
+        value = withContext(Dispatchers.IO) { if (coverResource != null) BitmapFactory.decodeResource(context.resources, coverResource) else file?.let { runCatching { BitmapFactory.decodeFile(it.path, BitmapFactory.Options().apply { inSampleSize = 2 }) }.getOrNull() } }
     }
     val tint = remember(bitmap) {
         bitmap?.let { image ->
