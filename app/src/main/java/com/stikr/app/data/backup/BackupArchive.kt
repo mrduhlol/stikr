@@ -26,6 +26,8 @@ internal object BackupArchive {
 
     fun write(packsDir: File, destination: File) {
         destination.parentFile?.mkdirs()
+        var expanded = 0L
+        var entries = 0
         ZipOutputStream(BufferedOutputStream(FileOutputStream(destination))).use { zip ->
             packsDir.listFiles { f -> f.isDirectory && f.name.matches(Regex("pack_[A-Za-z0-9_-]+")) }
                 .orEmpty().sortedBy { it.name }.forEach { dir ->
@@ -39,8 +41,9 @@ internal object BackupArchive {
                             val sticker = a.getString(i)
                             require(validAssetName(sticker) && sticker.endsWith(".webp")) { "Invalid sticker path during backup" }
                             names += sticker
-                            names += "$sticker.source.png"
-                            names += "$sticker.edit.json"
+                            listOf("$sticker.source.png", "$sticker.edit.json").forEach { sidecar ->
+                                if (File(dir, sidecar).isFile) names += sidecar
+                            }
                         }
                     }
                     listOf("trayImage", "thumbnailImage").forEach { field -> json.optString(field).takeIf { it.isNotEmpty() }?.let {
@@ -50,12 +53,15 @@ internal object BackupArchive {
                     val files = names.map { name -> File(dir, name).takeIf { it.isFile } ?: error("Pack asset missing during backup: $name") }
                         .sortedBy { it.name }
                     files.forEach { file ->
+                        expanded += file.length()
+                        require(++entries <= MAX_ENTRIES && file.length() <= MAX_ENTRY_BYTES && expanded <= MAX_EXPANDED_BYTES) { "Library exceeds backup limits" }
                         zip.putNextEntry(ZipEntry("packs/${dir.name}/${file.name}"))
                         FileInputStream(file).use { input -> input.copyTo(zip, BUFFER_SIZE) }
                         zip.closeEntry()
                     }
                 }
         }
+        require(destination.length() <= MAX_ARCHIVE_BYTES) { "Backup exceeds the size limit" }
     }
 
     /** Expands to private staging, then validates every path, JSON record and referenced asset. */
