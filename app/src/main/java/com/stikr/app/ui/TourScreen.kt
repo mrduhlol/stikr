@@ -34,11 +34,11 @@ import com.stikr.app.ui.neo.*
 fun TourOverlay(onDone: () -> Unit) {
     var page by rememberSaveable { mutableStateOf(0) }
     val p = Neo.palette
-    val titles = listOf("Your photos.\nYour personality.", "A little\nmore you.", "Made for\nthe chat.")
+    val titles = listOf("Your reactions.\nYour collection.", "One edit.\nEvery sticker.", "A little slide.\nA big reaction.")
     val bodies = listOf(
-        "Turn little moments into stickers.\nMake one, or build a whole collection.",
-        "Shape the corners. Find your font.\nAdd words, color, and a fine outline.",
-        "Your stickers, together in a pack.\nSlide to add them to WhatsApp.",
+        "Pick the photos that say it best. Make a sticker, or bring them together in a pack.",
+        "Set the look for the whole pack. Keep the original edges, add words, or fine-tune one sticker at a time.",
+        "Feel a gentle tick as you slide to WhatsApp. Save a local backup whenever you want to keep a copy.",
     )
     BackHandler { }
     Column(Modifier.fillMaxSize().collectionBackground().safeDrawingPadding().padding(horizontal = 24.dp, vertical = 18.dp)) {
@@ -48,7 +48,7 @@ fun TourOverlay(onDone: () -> Unit) {
             Text("0${page + 1} / 03", style = MaterialTheme.typography.labelMedium, color = p.muted)
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-            TourArtwork(page, Modifier.fillMaxWidth().heightIn(min = 230.dp).padding(vertical = 22.dp))
+            TourArtwork(page, Modifier.fillMaxWidth().height(350.dp).padding(vertical = 12.dp))
             Text(titles[page], style = MaterialTheme.typography.headlineLarge, color = p.ink, modifier = Modifier.semantics { heading() })
             Text(bodies[page], style = MaterialTheme.typography.bodyMedium, color = p.muted, modifier = Modifier.padding(top = 16.dp, bottom = 24.dp))
         }
@@ -59,8 +59,8 @@ fun TourOverlay(onDone: () -> Unit) {
             }
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            TextButton(onClick = { if (page == 2) page-- else onDone() }, modifier = Modifier.heightIn(min = 48.dp)) {
-                Text(if (page == 2) "Back" else "Skip", color = p.muted)
+            TextButton(onClick = { if (page > 0) page-- else onDone() }, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text(if (page > 0) "Back" else "Skip", color = p.muted)
             }
             NeoButton(if (page == 2) "Get started" else "Continue",
                 onClick = { if (page == 2) onDone() else page++ },
@@ -69,36 +69,44 @@ fun TourOverlay(onDone: () -> Unit) {
     }
 }
 
-/** Product imagery from the approved preview, with the actual pack's sharp frame language. */
+/** The same collectible card and supplied reaction photos used in the collection. */
 @Composable
 private fun TourArtwork(page: Int, modifier: Modifier) {
+    val p = Neo.palette
+    val photos = listOf(R.drawable.tour_reaction_ha, R.drawable.tour_reaction_grin, R.drawable.tour_reaction_shock,
+        R.drawable.tour_reaction_joker, R.drawable.tour_reaction_doge, R.drawable.tour_reaction_wallet)
     Box(modifier, contentAlignment = Alignment.Center) {
-        if (page == 1) {
-            Column(Modifier.rotate(3f).size(218.dp, 185.dp).clip(RoundedCornerShape(15.dp))
-                .background(Color(0xFF20271C)).border(1.dp, Color(0xFF48523B), RoundedCornerShape(15.dp)),
-                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Text("hello.", fontSize = 55.sp, fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic, color = Color(0xFFE0DECD))
-                Text("Aa     ●     ⌜", fontSize = 20.sp, color = Color(0xFFB2BAA6), modifier = Modifier.padding(top = 18.dp))
-            }
-        } else if (page == 0) {
-            Image(painterResource(R.drawable.tour_sample_photo), "Sample photo sticker",
-                Modifier.rotate(-9f).size(151.dp, 190.dp).clip(RoundedCornerShape(15.dp)), contentScale = ContentScale.Crop)
-            Text("hello.", fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic, fontSize = 32.sp,
-                color = Color(0xFF292B25), modifier = Modifier.align(Alignment.BottomCenter).offset(x = 48.dp, y = (-8).dp).rotate(7f)
-                    .background(Color(0xFFD7D2C4), RoundedCornerShape(9.dp)).padding(horizontal = 15.dp, vertical = 9.dp))
-        } else {
-            Column(Modifier.rotate(-5f).width(157.dp).background(Color(0xFFB4B9A1)).padding(8.dp)) {
-                Box {
-                    Image(painterResource(R.drawable.tour_sample_photo), "Sample pack cover", Modifier.fillMaxWidth().height(154.dp), contentScale = ContentScale.Crop)
-                    Text("▰▰▰▰▰\nLVL 001", color = Color(0xFF1C2019), fontSize = 8.sp,
-                        modifier = Modifier.background(Color(0xFFB4B9A1)).padding(5.dp))
+        when(page) {
+            0 -> PackCollectionCard(
+                com.stikr.app.data.StickerPack("tour", "Little reactions", "Abhishek", 1793491200000,
+                    (1..10).map { "$it.webp" }, serialNumber=1, displayId="86483904"),
+                Modifier.width(166.dp).rotate(-6f), coverResource=R.drawable.tour_preview_cover,
+            )
+            1 -> Column(Modifier.rotate(-5f),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                photos.chunked(3).forEach { row ->
+                    Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                        row.forEach { image ->
+                            Image(painterResource(image), "Sticker example", Modifier.size(76.dp).clip(RoundedCornerShape(10.dp))
+                                .background(p.card).padding(6.dp), contentScale=ContentScale.Fit)
+                        }
+                    }
                 }
-                Text("NOV 2026 · #48217       12/30", fontSize = 7.sp, color = Color(0xFF1C2019), modifier = Modifier.padding(top = 8.dp))
-                Text("Night ghosts", fontSize = 20.sp, color = Color(0xFF1C2019))
+                Text("All 10 · outline off by default",style=MaterialTheme.typography.labelMedium,color=p.ink,
+                    modifier=Modifier.padding(top=12.dp).background(p.creamDim,RoundedCornerShape(8.dp)).padding(12.dp))
             }
-            Surface(Modifier.align(Alignment.BottomEnd).padding(end = 30.dp, bottom = 10.dp).size(49.dp),
-                shape = RoundedCornerShape(25.dp), color = Color(0xFF232B1C), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF545F41))) {
-                Box(contentAlignment = Alignment.Center) { WhatsAppMark(Modifier.size(25.dp), Color(0xFFCCDBA8)) }
+            else -> Column(Modifier.fillMaxWidth().padding(horizontal=20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                Text("you know exactly what I mean.",color=p.ink,style=MaterialTheme.typography.bodySmall,
+                    modifier=Modifier.align(Alignment.End).background(p.creamDim,RoundedCornerShape(12.dp)).padding(14.dp))
+                Row(horizontalArrangement=Arrangement.spacedBy(18.dp),verticalAlignment=Alignment.CenterVertically) {
+                    Image(painterResource(R.drawable.tour_reaction_ha),"Reaction in a chat mockup",Modifier.size(110.dp).rotate(-7f).clip(RoundedCornerShape(12.dp)),contentScale=ContentScale.Crop)
+                    Image(painterResource(R.drawable.tour_reaction_wallet),"Another reaction sticker",Modifier.size(85.dp).rotate(7f).clip(RoundedCornerShape(10.dp)),contentScale=ContentScale.Crop)
+                }
+                Text("Your pack. Right there in the chat.",style=MaterialTheme.typography.bodySmall,color=p.muted)
+                Row(Modifier.fillMaxWidth().background(p.creamDim,RoundedCornerShape(28.dp)).padding(14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward,null,tint=p.ink)
+                    Text("Slide to add to WhatsApp",style=MaterialTheme.typography.labelSmall,color=p.ink,modifier=Modifier.weight(1f))
+                    WhatsAppMark(Modifier.size(22.dp))
+                }
             }
         }
     }
