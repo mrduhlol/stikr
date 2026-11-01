@@ -11,6 +11,7 @@ import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
+@org.junit.runner.RunWith(org.robolectric.RobolectricTestRunner::class)
 class BackupArchiveTest {
     @get:Rule val folder = TemporaryFolder()
 
@@ -75,6 +76,25 @@ class BackupArchiveTest {
         assertEquals(before, File(root, local.id).list()!!.toSet())
         assertTrue(repository.getPack(local.id) != null)
         assertFalse(File(folder.root, "outside").exists())
+    }
+
+    @Test fun restoringImportedStickersPreservesIdentityAndNewerChanges() {
+        val source = PackRepository(folder.newFolder("roundtrip-source"))
+        val created = source.createPack("Original")
+        source.addSticker(created.id, byteArrayOf(1, 2), "import.webp")
+        val before = source.getPack(created.id)!!
+        val archive = File(folder.root, "roundtrip.zip")
+        source.exportBackup(archive)
+        val target = PackRepository(folder.newFolder("roundtrip-target"))
+        assertEquals(1, target.importBackup(archive))
+        assertEquals(before.displayId, target.getPack(created.id)!!.displayId)
+        assertEquals(before.stickers, target.getPack(created.id)!!.stickers)
+        assertEquals(0, target.importBackup(archive))
+        source.renamePack(created.id, "Updated")
+        source.exportBackup(archive)
+        assertEquals(1, target.importBackup(archive))
+        assertEquals("Updated", target.getPack(created.id)!!.name)
+        assertEquals(before.displayId, target.getPack(created.id)!!.displayId)
     }
 
     private fun sourceRepoDir(repository: PackRepository, id: String): File = folder.root.resolve("source").resolve(id)
