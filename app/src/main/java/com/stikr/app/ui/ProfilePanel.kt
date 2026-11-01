@@ -68,7 +68,7 @@ fun ProfilePanel(
     if (confirmRestore) ConfirmDialog(
         kicker = "",
         title = "Restore your collections?",
-        body = "Packs from your backup will be added as copies. Your local packs stay in place.",
+        body = "Missing packs will be restored. For matching packs, the newer version is kept; local data wins ties.",
         confirmLabel = "Restore",
         dismissLabel = "Cancel",
         onDismiss = { confirmRestore = false },
