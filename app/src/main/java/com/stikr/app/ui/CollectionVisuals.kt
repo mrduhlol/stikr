@@ -47,10 +47,11 @@ import java.util.*
 import kotlin.math.*
 
 /** The collection's ambient surface also works behind dialogs and the pack screen. */
-fun Modifier.collectionBackground(): Modifier = background(Color(0xFF1C1621)).drawWithCache {
-    val violet = Brush.radialGradient(listOf(Color(0x88765384), Color.Transparent), Offset(size.width * .5f, 0f), size.height * .72f)
-    val olive = Brush.radialGradient(listOf(Color(0x55647342), Color.Transparent), Offset(size.width * .5f, size.height * 1.12f), size.height * .65f)
-    onDrawBehind { drawRect(violet); drawRect(olive) }
+fun Modifier.collectionBackground(): Modifier = background(
+    Brush.linearGradient(listOf(Color(0xFF141715), Color(0xFF0C0E0D), Color(0xFF12140F))),
+).drawWithCache {
+    val forest = Brush.radialGradient(listOf(Color(0x33374032), Color.Transparent), Offset(size.width * .5f, 0f), size.height * .72f)
+    onDrawBehind { drawRect(forest) }
 }
 
 private fun coverFile(pack: StickerPack, root: File): File? =
@@ -123,7 +124,7 @@ fun SlideExport(enabled: Boolean = true, busy: Boolean = false, onConfirm: () ->
     val active = enabled && !busy
     val latestConfirm by rememberUpdatedState(onConfirm)
     LaunchedEffect(active) { if (!active) position=0f }
-    Box(modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(32.dp)).background(Color(0xFF352B3D)).onSizeChanged { width=it.width.toFloat() }
+    Box(modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(32.dp)).background(Color(0xFF232B20)).onSizeChanged { width=it.width.toFloat() }
         .semantics(mergeDescendants=true) {
             contentDescription = if(busy) "Preparing pack for WhatsApp" else "Slide to add to WhatsApp"
             if(!active) disabled()
@@ -136,7 +137,7 @@ fun SlideExport(enabled: Boolean = true, busy: Boolean = false, onConfirm: () ->
                 onDragEnd={ val confirmed=slideConfirmed(position,travel); position=0f; if(confirmed) latestConfirm() },
             )
         }, contentAlignment=Alignment.Center) {
-        Text(if(busy) "Preparing pack…" else "Slide to add to WhatsApp",fontSize=12.sp,color=Color(0xFFE7DDED).copy(alpha=if(active) 1f else .5f),modifier=Modifier.padding(start=34.dp,end=28.dp))
+        Text(if(busy) "Preparing pack…" else "Slide to add to WhatsApp",fontSize=12.sp,color=Color(0xFFE1EBCD).copy(alpha=if(active) 1f else .5f),modifier=Modifier.padding(start=34.dp,end=28.dp))
         WhatsAppMark(Modifier.align(Alignment.CenterEnd).padding(end=17.dp).size(24.dp))
         Box(Modifier.align(Alignment.CenterStart).offset { IntOffset((inset+position).roundToInt(),0) }.size(52.dp).background(if(active) Color(0xFFD5F277) else Color(0xFF8A877A),RoundedCornerShape(26.dp)),contentAlignment=Alignment.Center) {
             Icon(Icons.AutoMirrored.Filled.ArrowForward,null,tint=Color(0xFF263113))
@@ -157,7 +158,7 @@ fun PackAddedCelebration(pack: StickerPack, onFinished: () -> Unit) {
         if(!reduced) { pop.animateTo(1f,tween(180)); turn.animateTo(360f,tween(1350,easing=LinearEasing)); burst.animateTo(1f,tween(1100)) }
         delay(if(reduced) 1600 else 700); finish()
     }
-    Box(Modifier.fillMaxSize().background(Color(0xED17101D)),contentAlignment=Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(Color(0xED0C0E0D)),contentAlignment=Alignment.Center) {
         Column(horizontalAlignment=Alignment.CenterHorizontally,modifier=Modifier.padding(32.dp).widthIn(max=330.dp)) {
             Text("Pack added",style=MaterialTheme.typography.headlineMedium,color=Color(0xFFF3F7E9),modifier=Modifier.padding(bottom=28.dp).semantics { liveRegion=LiveRegionMode.Polite })
             val back=turn.value in 90f..270f
