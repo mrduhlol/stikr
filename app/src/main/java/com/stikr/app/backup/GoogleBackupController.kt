@@ -88,7 +88,7 @@ class GoogleBackupController(context: Context, private val repository: PackRepos
                     true
                 }
             }
-            mutable.value = state.value.copy(restoreAvailable = false.takeIf { restored },
+            mutable.value = state.value.copy(restoreAvailable = false,
                 status = if (restored) "Backup restored and merged with this library." else "No backup found.")
             if (restored) onRestored()
         }
@@ -167,7 +167,7 @@ class GoogleBackupController(context: Context, private val repository: PackRepos
     }
 
     private fun checkedToken(result: AuthorizationResult): String {
-        require(result.grantedScopes.containsAll(scopes)) { "Required Google permissions were not granted." }
+        require(result.grantedScopes.contains(DRIVE_SCOPE)) { "Required Google permissions were not granted." }
         return requireNotNull(result.accessToken) { "Google did not return an access token." }.also { token = it }
     }
 
