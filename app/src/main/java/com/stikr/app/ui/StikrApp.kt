@@ -121,6 +121,7 @@ fun StikrApp(
     }
 
     fun openEditor(id: String) {
+        bulkEditing = false
         singleEditing = false
         packId = id
         savingToNewPack = false // a fresh editor session starts clean
@@ -129,6 +130,7 @@ fun StikrApp(
     }
 
     fun leaveEditor() {
+        bulkEditing = false
         savingToNewPack = false
         viewModel.closeEditor()
         screen = if (singleEditing) Screen.HOME.name else Screen.PACK.name
@@ -136,6 +138,7 @@ fun StikrApp(
     }
 
     fun makeSticker() {
+        bulkEditing = false
         viewModel.startSingleSticker { id ->
             packId = id
             singleEditing = true
