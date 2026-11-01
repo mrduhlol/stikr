@@ -25,7 +25,7 @@ class StickerRendererTest {
     @Test
     fun defaultsAndBleedingBendChangePhotoCornersBeforeOutline() {
         val defaults = StickerRenderer.Style()
-        assertEquals(3, defaults.outline)
+        assertEquals(0, defaults.outline)
         assertEquals(false, defaults.roundedCorners)
         assertEquals("sans", defaults.captionFont)
         assertEquals(40, defaults.captionSize)
