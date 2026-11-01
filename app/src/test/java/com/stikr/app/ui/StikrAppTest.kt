@@ -170,13 +170,34 @@ class StikrAppTest : ScreenRenderHarness() {
     }
 
     @Test
+    fun leavingPackEditDoesNotTurnTheNextStickerEditIntoABulkEdit() {
+        val pack = fullPack()
+        val model = viewModel(tour = false)
+        show(model)
+        awaitPacks(model,pack.id)
+        compose.onNodeWithText("Full pack",ignoreCase=true).performClick()
+        settle()
+        compose.onNodeWithText("Pack edit").performClick()
+        await { model.editor.value?.ready==true }
+        compose.onNodeWithText("Apply to entire pack").assertIsDisplayed()
+        compose.activity.onBackPressedDispatcher.onBackPressed()
+        compose.onNodeWithText("Discard",ignoreCase=true).performClick()
+        settle()
+        compose.onNodeWithContentDescription("Sticker 1").performScrollTo().performClick()
+        compose.onNodeWithText("Edit sticker",ignoreCase=true).performClick()
+        await { model.editor.value?.ready==true }
+        compose.onNodeWithText("Save changes",ignoreCase=true).assertIsDisplayed()
+        compose.onNodeWithText("Apply to entire pack").assertDoesNotExist()
+    }
+
+    @Test
     fun savingASingleReturnsToTheLibraryAndKeepsTheFullPack() {
         val pack = fullPack()
         val viewModel = viewModel(tour = false)
         show(viewModel)
         awaitPacks(viewModel, pack.id)
         openReadyEditor(viewModel)
-        compose.onNodeWithText("Add to “Stikr”", ignoreCase = true).performClick()
+        compose.onNodeWithText("Save only", ignoreCase = true).performClick()
         await { viewModel.editor.value == null }
         settle()
         compose.onNodeWithText("Your packs").assertIsDisplayed()
@@ -194,12 +215,12 @@ class StikrAppTest : ScreenRenderHarness() {
         val destination = File(app.filesDir, "packs/${viewModel.editor.value!!.packId}")
         assertTrue(destination.setWritable(false, false))
         try {
-            compose.onNodeWithText("Add to “Stikr”", ignoreCase = true).performClick()
+            compose.onNodeWithText("Save only", ignoreCase = true).performClick()
             await { viewModel.message.value == "Couldn't save the sticker" }
             assertTrue(viewModel.editor.value?.ready == true)
-            compose.onNodeWithText("Add to “Stikr”", ignoreCase = true).assertIsDisplayed()
+            compose.onNodeWithText("Save only", ignoreCase = true).assertIsDisplayed()
         } finally { destination.setWritable(true, false) }
-        compose.onNodeWithText("Add to “Stikr”", ignoreCase = true).performClick()
+        compose.onNodeWithText("Save only", ignoreCase = true).performClick()
         await { viewModel.editor.value == null }
         settle()
         compose.onNodeWithText("Your packs").assertIsDisplayed()
