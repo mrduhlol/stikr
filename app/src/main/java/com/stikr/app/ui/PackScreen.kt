@@ -93,6 +93,7 @@ fun PackScreen(
     onRenameAuthor: (String) -> Unit = {},
     onThumbnail: () -> Unit = {},
     onEditPack: () -> Unit = {},
+    onSharePack: () -> Unit = {},
 ) {
     val palette = Neo.palette
     val context = LocalContext.current
@@ -144,6 +145,7 @@ fun PackScreen(
                     onThumbnail = onThumbnail,
                     onAuthor = { showAuthor = true },
                     onEditPack = onEditPack,
+                    onSharePack = onSharePack,
                 )
             }
 
@@ -284,7 +286,8 @@ fun PackScreen(
 
 @Composable
 private fun TopBar(pack: StickerPack, onBack: () -> Unit, onRename: () -> Unit,
-                    onDelete: () -> Unit, onThumbnail: () -> Unit, onAuthor: () -> Unit, onEditPack: () -> Unit) {
+                    onDelete: () -> Unit, onThumbnail: () -> Unit, onAuthor: () -> Unit, onEditPack: () -> Unit,
+                    onSharePack: () -> Unit) {
     val palette = Neo.palette
     var menu by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -295,6 +298,7 @@ private fun TopBar(pack: StickerPack, onBack: () -> Unit, onRename: () -> Unit,
         Box {
             IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, "Pack options", tint = palette.ink) }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(text = { Text("Share pack") }, onClick = { menu = false; onSharePack() })
                 DropdownMenuItem(text = { Text("Delete pack") }, onClick = { menu = false; onDelete() })
                 DropdownMenuItem(text = { Text("Add thumbnail") }, onClick = { menu = false; onThumbnail() })
                 DropdownMenuItem(text = { Text("Rename Title") }, onClick = { menu = false; onRename() })

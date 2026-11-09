@@ -2,6 +2,7 @@ package com.stikr.app.ui
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
@@ -71,6 +72,19 @@ fun StikrApp(
             super.createIntent(context, input).putExtra(android.content.Intent.EXTRA_LOCAL_ONLY, true)
     }) { uri ->
         restoreUri = uri?.toString()
+    }
+    val openSharedPack = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(viewModel::importSharedPack)
+    }
+    LaunchedEffect(Unit) {
+        val incoming = (context as? Activity)?.intent
+        if (incoming?.action == Intent.ACTION_VIEW || incoming?.action == Intent.ACTION_SEND) {
+            val uri = incoming.data ?: incoming.getParcelableExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)
+            if (uri != null) {
+                runCatching { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+                viewModel.importSharedPack(uri)
+            }
+        }
     }
     val packs by viewModel.packs.collectAsStateWithLifecycle()
     val editor by viewModel.editor.collectAsStateWithLifecycle()
@@ -210,6 +224,7 @@ fun StikrApp(
                     Screen.HOME.name -> HomeScreen(
                         packs = packs,
                         onBackup = { showLocalBackup = true },
+                        onImportPack = { openSharedPack.launch(arrayOf("application/zip", "application/octet-stream", "application/x-stikr-pack")) },
                         onOpenPack = ::openPack,
                         onCreatePack = { name -> viewModel.createPack(name) { openPack(it.id) } },
                         onMakeSticker = { bulkEditing = false; makeSticker() },
@@ -254,6 +269,12 @@ fun StikrApp(
                                 onShareSticker = { viewModel.shareSticker(pack.id, it) },
                                 onExport = { exportPack(pack.id) },
                                 exporting = exportingPackId == pack.id,
+                                onSharePack = {
+                                    viewModel.sharePack(pack.id) { intent ->
+                                        try { context.startActivity(Intent.createChooser(intent, "Share sticker pack")) }
+                                        catch (_: ActivityNotFoundException) { viewModel.notify("No sharing apps are available") }
+                                    }
+                                },
                             )
                         }
                     }

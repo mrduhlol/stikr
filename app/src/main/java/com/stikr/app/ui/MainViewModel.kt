@@ -3,6 +3,7 @@ package com.stikr.app.ui
 import android.app.Application
 import android.graphics.Bitmap
 import android.content.Intent
+import androidx.core.content.FileProvider
 import java.io.ByteArrayOutputStream
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
@@ -62,6 +63,57 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun exportLocalBackup(uri: Uri) = transferLocalBackup(uri, restore = false)
     fun restoreLocalBackup(uri: Uri) = transferLocalBackup(uri, restore = true)
+
+    fun sharePack(packId: String, onReady: (Intent) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val intent = withContext(Dispatchers.IO) {
+                    val app = getApplication<Application>()
+                    val archive = File(app.cacheDir, "shared-${packId}.stikrpack")
+                    repo.exportPack(packId, archive)
+                    val uri = FileProvider.getUriForFile(app, "${app.packageName}.files", archive)
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "application/zip"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        putExtra(Intent.EXTRA_SUBJECT, "A sticker pack from Stikr")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                }
+                onReady(intent)
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { notify("Couldn't prepare this pack for sharing") }
+        }
+    }
+
+    fun importSharedPack(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val count = withContext(Dispatchers.IO) {
+                    val app = getApplication<Application>()
+                    val archive = File.createTempFile("stikr-shared-", ".zip", app.cacheDir)
+                    try {
+                        requireNotNull(app.contentResolver.openInputStream(uri)) { "Cannot open pack" }.use { input ->
+                            archive.outputStream().use { output ->
+                                val buffer = ByteArray(32 * 1024)
+                                var total = 0L
+                                while (true) {
+                                    val read = input.read(buffer)
+                                    if (read < 0) break
+                                    total += read
+                                    require(total <= com.stikr.app.data.backup.BackupArchive.MAX_ARCHIVE_BYTES) { "Pack is too large" }
+                                    output.write(buffer, 0, read)
+                                }
+                            }
+                        }
+                        repo.importBackup(archive)
+                    } finally { archive.delete() }
+                }
+                loadPacks()
+                notify(if (count > 0) "Pack added to your collection" else "This pack is already up to date")
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { notify("Couldn't import this pack. Check the file and available storage.") }
+        }
+    }
 
     private fun transferLocalBackup(uri: Uri, restore: Boolean) {
         if (_localBackupBusy.value) return

@@ -50,6 +50,7 @@ fun HomeScreen(
     onExportSingles: (String) -> Unit = {},
     onDeleteSingle: (String, String) -> Unit = { _, _ -> },
     onBackup: () -> Unit = {},
+    onImportPack: () -> Unit = {},
 ) {
     val palette=Neo.palette
     var showCreateBatch by rememberSaveable { mutableStateOf(false) }
@@ -74,6 +75,7 @@ fun HomeScreen(
                 Spacer(Modifier.weight(1f))
                 SoundToggle()
                 IconButton(onClick = onBackup) { Icon(painterResource(R.drawable.ic_local_backup), "Local backup", tint = palette.ink) }
+                TextButton(onClick = onImportPack) { Text("Import pack", color = palette.ink) }
             } }
             item(span={GridItemSpan(maxLineSpan)},key="intro") { Column(Modifier.padding(top=14.dp,bottom=10.dp)) { Text("Your little collections.",fontSize=30.sp,lineHeight=34.sp,fontWeight=FontWeight.SemiBold,letterSpacing=(-.8).sp,color=palette.ink); Text("Photos, words, and a little personality.",style=MaterialTheme.typography.bodyMedium,color=palette.muted,modifier=Modifier.padding(top=10.dp)) } }
             item(span={GridItemSpan(maxLineSpan)},key="create") { Row(Modifier.padding(bottom=16.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)) {

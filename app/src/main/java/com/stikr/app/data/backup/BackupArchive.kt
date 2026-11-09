@@ -24,12 +24,12 @@ internal object BackupArchive {
         override fun close() { temp.deleteRecursively() }
     }
 
-    fun write(packsDir: File, destination: File) {
+    fun write(packsDir: File, destination: File, selectedPackIds: Set<String>? = null) {
         destination.parentFile?.mkdirs()
         var expanded = 0L
         var entries = 0
         ZipOutputStream(BufferedOutputStream(FileOutputStream(destination))).use { zip ->
-            packsDir.listFiles { f -> f.isDirectory && f.name.matches(Regex("pack_[A-Za-z0-9_-]+")) }
+                packsDir.listFiles { f -> f.isDirectory && f.name.matches(Regex("pack_[A-Za-z0-9_-]+")) && (selectedPackIds == null || f.name in selectedPackIds) }
                 .orEmpty().sortedBy { it.name }.forEach { dir ->
                     val meta = File(dir, "pack.json")
                     if (!meta.isFile || meta.length() > 1024 * 1024) return@forEach

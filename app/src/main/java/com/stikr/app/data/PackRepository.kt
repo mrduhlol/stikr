@@ -204,9 +204,19 @@ class PackRepository(private val root: File) {
 
     /** Writes a consistent pack-only snapshot. Call from an IO dispatcher. */
     fun exportBackup(destination: File): Unit = synchronized(lock) {
+        exportBackup(destination, null)
+    }
+
+    /** Writes a portable archive containing one pack. Call from an IO dispatcher. */
+    fun exportPack(packId: String, destination: File): Unit = synchronized(lock) {
+        require(readPack(File(root, packId)) != null) { "Pack not found" }
+        exportBackup(destination, setOf(packId))
+    }
+
+    private fun exportBackup(destination: File, selectedPackIds: Set<String>?) {
         val temp = File(destination.parentFile ?: root, ".${destination.name}.tmp")
         try {
-            BackupArchive.write(root, temp)
+            BackupArchive.write(root, temp, selectedPackIds)
             Files.move(temp.toPath(), destination.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
         } finally {
             temp.delete()
