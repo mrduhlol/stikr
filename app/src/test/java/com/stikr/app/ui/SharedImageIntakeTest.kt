@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import com.stikr.app.MainActivity
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -41,6 +42,24 @@ class SharedImageIntakeTest {
     fun imageShareWithoutAStreamIsIgnored() {
         val intent = Intent(Intent.ACTION_SEND).apply { type = "image/png" }
         assertNull(SharedImageIntake.imageUri(intent))
+    }
+
+    @Test
+    fun imageShareIsNotSentToThePackImporter() {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "image/png"
+            putExtra(Intent.EXTRA_STREAM, photo)
+        }
+        assertFalse(SharedImageIntake.isPackShare(intent))
+    }
+
+    @Test
+    fun packShareIsStillSentToTheImporter() {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/zip"
+            putExtra(Intent.EXTRA_STREAM, Uri.parse("content://packs/1"))
+        }
+        assertTrue(SharedImageIntake.isPackShare(intent))
     }
 
     @Test
