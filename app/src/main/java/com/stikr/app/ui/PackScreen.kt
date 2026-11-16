@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Share
@@ -88,6 +89,7 @@ fun PackScreen(
     importState: PackImportState? = null,
     onDeleteSticker: (String) -> Unit,
     onShareSticker: (String) -> Unit,
+    onDuplicateSticker: (String) -> Unit = {},
     onExport: () -> Unit,
     exporting: Boolean = false,
     onRenameAuthor: (String) -> Unit = {},
@@ -223,6 +225,10 @@ fun PackScreen(
                 onShare = {
                     openSticker = null
                     onShareSticker(fileName)
+                },
+                onDuplicate = {
+                    openSticker = null
+                    onDuplicateSticker(fileName)
                 },
                 onDelete = {
                     openSticker = null
@@ -479,6 +485,7 @@ private fun StickerSheet(
     onDismiss: () -> Unit,
     onShare: () -> Unit,
     onEdit: () -> Unit,
+    onDuplicate: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val palette = Neo.palette
@@ -512,6 +519,14 @@ private fun StickerSheet(
             )
         },
         actions = {
+            NeoOutlinedButton(
+                text = "Duplicate",
+                onClick = onDuplicate,
+                icon = Icons.Default.ContentCopy,
+                shadow = NeoDimens.shadowSmall,
+                contentPadding = PaddingValues(vertical = 14.dp),
+                modifier = Modifier.weight(1f),
+            )
             NeoOutlinedButton(
                 text = "Delete",
                 onClick = onDelete,
