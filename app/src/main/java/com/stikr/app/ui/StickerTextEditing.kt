@@ -1,7 +1,9 @@
 package com.stikr.app.ui
 
 import androidx.compose.foundation.gestures.*
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -68,7 +70,15 @@ internal fun Modifier.stickerTextGestures(style: Style, selected: Int, enabled: 
 }
 
 @Composable
-internal fun StickerTextPanel(style: Style, enabled: Boolean, selected: Int, onSelected: (Int) -> Unit, onStyle: (Style) -> Unit) {
+internal fun StickerTextPanel(
+    style: Style,
+    enabled: Boolean,
+    selected: Int,
+    onSelected: (Int) -> Unit,
+    onStyle: (Style) -> Unit,
+    recentCaptions: List<String> = emptyList(),
+    onPickCaption: (String) -> Unit = {},
+) {
     val layer = style.textLayer(selected)
     val change: (Style) -> Unit = { onStyle(style.withTextLayer(selected, it)) }
     val palette = Neo.palette
@@ -99,6 +109,18 @@ internal fun StickerTextPanel(style: Style, enabled: Boolean, selected: Int, onS
         }
         Spacer(Modifier.height(14.dp))
         NeoTextField(layer.caption, { value -> change(layer.copy(caption=value.take(500),captionX=layer.captionX?:.5f,captionY=layer.captionY?:.78f)) }, label="Your text", placeholder="Say something", enabled=enabled, singleLine=false)
+        if (recentCaptions.isNotEmpty()) {
+            Spacer(Modifier.height(12.dp))
+            Text("RECENT", style=MaterialTheme.typography.labelMedium, color=palette.muted)
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                recentCaptions.forEach { caption ->
+                    NeoTextButton(caption, { onPickCaption(caption) })
+                }
+            }
+        }
         Spacer(Modifier.height(22.dp))
         Text("Text editing", style=MaterialTheme.typography.titleMedium,color=palette.ink)
         Spacer(Modifier.height(14.dp))

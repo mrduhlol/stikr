@@ -84,6 +84,7 @@ fun StikrApp(
     val batch by viewModel.batch.collectAsStateWithLifecycle()
     val showTour by viewModel.showTour.collectAsStateWithLifecycle()
     val importing by viewModel.importing.collectAsStateWithLifecycle()
+    val captions by viewModel.captions.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val whatsappLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val validationError = result.data?.getStringExtra("validation_error")
@@ -366,6 +367,7 @@ fun StikrApp(
                                 // A full pack can't take another sticker; the editor
                                 // offers a fresh one instead.
                                 packFull = state.editingFileName == null && (pack?.stickerCount ?: 0) >= PackRepository.MAX_WHATSAPP_STICKERS,
+                                recentCaptions = captions,
                                 onBack = { leaveEditor() },
                             )
                         }
