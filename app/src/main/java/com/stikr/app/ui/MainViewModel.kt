@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.stikr.app.data.BatchPlanner
 import com.stikr.app.data.ImageLoader
 import com.stikr.app.data.PackRepository
+import com.stikr.app.data.RecentCaptions
 import com.stikr.app.data.StylePrefs
 import com.stikr.app.data.StickerPack
 import com.stikr.app.data.TourPrefs
@@ -60,6 +61,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val packsRoot = File(app.filesDir, "packs")
     private val repo = PackRepository(packsRoot)
     private val stylePrefs = StylePrefs(app)
+    private val captionsStore = RecentCaptions(app)
+    private val _captions = MutableStateFlow(captionsStore.all())
+    val captions = _captions.asStateFlow()
     private val _localBackupBusy = MutableStateFlow(false)
     val localBackupBusy: StateFlow<Boolean> = _localBackupBusy.asStateFlow()
 
@@ -506,6 +510,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     _editor.value = _editor.value?.copy(saving = false)
                     notify("Couldn't save the sticker")
                     return@launch
+                }
+                if (state.style.caption.isNotBlank()) {
+                    captionsStore.record(state.style.caption)
+                    _captions.value = captionsStore.all()
                 }
                 closeEditor()
                 refresh()
