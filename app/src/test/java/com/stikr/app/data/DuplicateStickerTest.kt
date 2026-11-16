@@ -36,7 +36,7 @@ class DuplicateStickerTest {
         assertEquals(2, updated!!.stickerCount)
         val copy = updated.stickers.last()
         assertTrue(copy != "stk_first.webp")
-        val dir = File(repository.stickerFile(pack.id, copy)!!.parentFile!!)
+        val dir = repository.stickerFile(pack.id, copy)!!.parentFile!!
         assertArrayEquals(byteArrayOf(1, 2, 3), File(dir, copy).readBytes())
         assertArrayEquals(byteArrayOf(9, 8), File(dir, "$copy.source.png").readBytes())
         assertEquals("{\"outline\":4}", File(dir, "$copy.edit.json").readText())
