@@ -33,6 +33,12 @@
                 <data android:mimeType="application/octet-stream" />
                 <data android:mimeType="application/x-stikr-pack" />
             </intent-filter>
+            <!-- A photo shared from the gallery or camera opens straight in the editor. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
         </activity>
 
         <!-- Serves packs to WhatsApp when it imports them. WhatsApp holds the
