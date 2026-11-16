@@ -60,8 +60,8 @@ Constraints: static stickers only, no animation; cut-out requires Google Play
 services, everything else works fully offline; no cloud, no accounts, no
 analytics, no telemetry; nothing is ever uploaded.
 
-Not shipped yet: tray-icon picker, multiple subjects, caption fonts, emoji
-suggestions per sticker.
+Not shipped yet: tray-icon picker, multiple subjects, emoji suggestions per
+sticker.
 
 ## Brand Commitments
 
