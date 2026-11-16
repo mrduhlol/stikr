@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.stikr.app.data.BatchPlanner
 import com.stikr.app.data.ImageLoader
 import com.stikr.app.data.PackRepository
+import com.stikr.app.data.StylePrefs
 import com.stikr.app.data.StickerPack
 import com.stikr.app.data.TourPrefs
 import com.stikr.app.editor.SubjectCutout
@@ -58,6 +59,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val packsRoot = File(app.filesDir, "packs")
     private val repo = PackRepository(packsRoot)
+    private val stylePrefs = StylePrefs(app)
     private val _localBackupBusy = MutableStateFlow(false)
     val localBackupBusy: StateFlow<Boolean> = _localBackupBusy.asStateFlow()
 
@@ -325,7 +327,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun startEditor(packId: String) {
         imageRequest++
-        _editor.value = EditorState(packId = packId)
+        _editor.value = EditorState(packId = packId, style = stylePrefs.last)
         renderPreview()
     }
 
@@ -473,6 +475,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val state = _editor.value ?: return
         if (state.style == style || state.saving) return
         _editor.value = state.copy(style = style)
+        stylePrefs.last = style
         renderPreview()
     }
 
