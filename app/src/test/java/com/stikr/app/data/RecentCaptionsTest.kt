@@ -57,19 +57,20 @@ class RecentCaptionsTest : com.stikr.app.ui.ScreenRenderHarness() {
         val image = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
         image.eraseColor(Color.GREEN)
         val style = mutableStateOf(StickerRenderer.Style())
+        var picked = "none"
         compose.setContent {
             StikrTheme {
                 EditorScreen(
                     state = EditorState(packId = "pack", source = image, subject = image, preview = image, style = style.value),
                     packName = "My stickers",
                     recentCaptions = listOf("Nice", "Wow"),
-                    onPickCaption = { style.value = style.value.copy(caption = it) },
+                    onPickCaption = { picked = it; style.value = style.value.copy(caption = it) },
                     onPick = {}, onCutout = {}, onStyle = { style.value = it },
                     onSave = {}, packFull = false, onSaveNew = {}, onBack = {},
                 )
             }
         }
         compose.onNodeWithText("Wow").performScrollTo().performClick()
-        assertEquals("Wow", style.value.caption)
+        assertEquals("picked=$picked caption=${style.value.caption}", "Wow", style.value.caption)
     }
 }
