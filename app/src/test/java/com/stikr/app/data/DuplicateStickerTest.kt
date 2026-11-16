@@ -1,5 +1,6 @@
 package com.stikr.app.data
 
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -36,8 +37,8 @@ class DuplicateStickerTest {
         val copy = updated.stickers.last()
         assertTrue(copy != "stk_first.webp")
         val dir = File(repository.stickerFile(pack.id, copy)!!.parentFile!!)
-        assertEquals(byteArrayOf(1, 2, 3).toList(), File(dir, copy).readBytes().toList())
-        assertEquals(byteArrayOf(9, 8).toList(), File(dir, "$copy.source.png").readBytes().toList())
+        assertArrayEquals(byteArrayOf(1, 2, 3), File(dir, copy).readBytes())
+        assertArrayEquals(byteArrayOf(9, 8), File(dir, "$copy.source.png").readBytes())
         assertEquals("{\"outline\":4}", File(dir, "$copy.edit.json").readText())
         assertEquals(first.stickerCount + 1, updated.stickerCount)
     }
