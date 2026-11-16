@@ -286,6 +286,7 @@ fun StikrApp(
                                 importState = importing?.takeIf { it.packId == pack.id },
                                 onDeleteSticker = { viewModel.deleteSticker(pack.id, it) },
                                 onShareSticker = { viewModel.shareSticker(pack.id, it) },
+                                onDuplicateSticker = { file -> viewModel.duplicateSticker(pack.id, file) },
                                 onExport = { exportPack(pack.id) },
                                 exporting = exportingPackId == pack.id,
                                 onSharePack = {

@@ -88,6 +88,7 @@ fun PackScreen(
     importState: PackImportState? = null,
     onDeleteSticker: (String) -> Unit,
     onShareSticker: (String) -> Unit,
+    onDuplicateSticker: (String) -> Unit = {},
     onExport: () -> Unit,
     exporting: Boolean = false,
     onRenameAuthor: (String) -> Unit = {},
@@ -223,6 +224,10 @@ fun PackScreen(
                 onShare = {
                     openSticker = null
                     onShareSticker(fileName)
+                },
+                onDuplicate = {
+                    openSticker = null
+                    onDuplicateSticker(fileName)
                 },
                 onDelete = {
                     openSticker = null
@@ -479,6 +484,7 @@ private fun StickerSheet(
     onDismiss: () -> Unit,
     onShare: () -> Unit,
     onEdit: () -> Unit,
+    onDuplicate: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val palette = Neo.palette
@@ -512,6 +518,14 @@ private fun StickerSheet(
             )
         },
         actions = {
+            NeoOutlinedButton(
+                text = "Duplicate",
+                onClick = onDuplicate,
+                icon = Icons.Default.Add,
+                shadow = NeoDimens.shadowSmall,
+                contentPadding = PaddingValues(vertical = 14.dp),
+                modifier = Modifier.weight(1f),
+            )
             NeoOutlinedButton(
                 text = "Delete",
                 onClick = onDelete,
