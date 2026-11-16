@@ -20,7 +20,12 @@ import com.stikr.app.ui.neo.NeoTextButton
 import com.stikr.app.ui.theme.AppearanceMode
 
 @Composable
-fun SettingsScreen(mode: AppearanceMode, onSelect: (AppearanceMode) -> Unit, onBack: () -> Unit) {
+fun SettingsScreen(
+    mode: AppearanceMode,
+    onSelect: (AppearanceMode) -> Unit,
+    onBack: () -> Unit,
+    onPrivacy: () -> Unit,
+) {
     val palette = Neo.palette
     BackHandler(onBack = onBack)
     Column(
@@ -52,5 +57,9 @@ fun SettingsScreen(mode: AppearanceMode, onSelect: (AppearanceMode) -> Unit, onB
                 }
             }
         }
+        Spacer(Modifier.height(32.dp))
+        Text("Privacy", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+        Text("How stikr handles your photos.", style = MaterialTheme.typography.bodyMedium, color = palette.muted)
+        NeoTextButton(text = "How it works & privacy", onClick = onPrivacy)
     }
 }
