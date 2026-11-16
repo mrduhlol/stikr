@@ -115,6 +115,17 @@ class PackRepository(private val root: File) {
             updated
         }
 
+    /** Copies a sticker with its private original and edit settings into the same pack. */
+    fun duplicateSticker(packId: String, fileName: String): StickerPack? = synchronized(lock) {
+        val pack = readPack(File(root, packId)) ?: return null
+        if (fileName !in pack.stickers || pack.stickerCount >= MAX_WHATSAPP_STICKERS) return null
+        val dir = File(root, packId)
+        val bytes = File(dir, fileName).takeIf { it.isFile }?.readBytes() ?: return null
+        val source = File(dir, "$fileName.source.png").takeIf { it.isFile }?.readBytes()
+        val edit = File(dir, "$fileName.edit.json").takeIf { it.isFile }?.readText()
+        addSticker(packId, bytes, source = source, editData = edit)
+    }
+
     /** Replaces an existing sticker in place, including in a full pack. */
     fun replaceSticker(packId: String, fileName: String, bytes: ByteArray, source: ByteArray? = null, editData: String? = null): StickerPack? =
         synchronized(lock) {
