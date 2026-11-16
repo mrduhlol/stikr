@@ -14,6 +14,13 @@
 
 <p align="center">Personal stickers, made for your conversations.<br>Free · Android 8.0+ · No account required</p>
 
+## Latest release
+
+**v0.6** · [Release notes](https://github.com/mrduhlol/stikr/releases/tag/v0.6) · [Download APK](https://github.com/mrduhlol/stikr/releases/download/app/stikr.apk)
+
+New in v0.6: share a photo into stikr from any app, an in-app privacy explainer,
+remembered sticker styling, recent captions, and one-tap sticker duplication.
+
 ## Features
 
 - Create individual stickers or turn multiple photos into packs.
@@ -21,6 +28,8 @@
 - Remove backgrounds, adjust outlines, and add text with fonts and colours.
 - Personalise pack covers with a photo or styled text.
 - Add packs to WhatsApp or WhatsApp Business, or share stickers individually.
+- Duplicate a sticker in a pack, reuse recent captions, and keep your last sticker style.
+- Read how stikr handles your photos in Settings → How it works & privacy.
 - Save and restore your collections with local backup files.
 
 ## Install
