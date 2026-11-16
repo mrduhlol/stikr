@@ -4,6 +4,9 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -70,7 +73,7 @@ class RecentCaptionsTest : com.stikr.app.ui.ScreenRenderHarness() {
                 )
             }
         }
-        compose.onNodeWithText("Wow").performScrollTo().performClick()
+        compose.onNode(hasText("Wow") and hasClickAction()).performScrollTo().performClick()
         assertEquals("picked=$picked caption=${style.value.caption}", "Wow", style.value.caption)
     }
 }
