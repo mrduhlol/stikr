@@ -6,6 +6,7 @@ import android.graphics.Color
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import com.stikr.app.render.StickerRenderer
 import com.stikr.app.ui.EditorScreen
@@ -68,7 +69,7 @@ class RecentCaptionsTest : com.stikr.app.ui.ScreenRenderHarness() {
                 )
             }
         }
-        compose.onNodeWithText("Wow").performClick()
+        compose.onNodeWithText("Wow").performScrollTo().performClick()
         assertEquals("Wow", style.value.caption)
     }
 }
