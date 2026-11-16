@@ -45,7 +45,7 @@ import com.stikr.app.ui.neo.NeoSnackbar
 import com.stikr.app.ui.theme.NeoMotion
 import com.stikr.app.ui.theme.AppearanceMode
 
-private enum class Screen { HOME, PACK, EDITOR, THUMBNAIL, SETTINGS }
+private enum class Screen { HOME, PACK, EDITOR, THUMBNAIL, SETTINGS, PRIVACY }
 
 @Composable
 fun StikrApp(
@@ -320,6 +320,11 @@ fun StikrApp(
                         mode = appearanceMode,
                         onSelect = onAppearanceChange,
                         onBack = { screen = Screen.HOME.name },
+                        onPrivacy = { screen = Screen.PRIVACY.name },
+                    )
+
+                    Screen.PRIVACY.name -> PrivacyScreen(
+                        onBack = { screen = Screen.SETTINGS.name },
                     )
 
                     Screen.EDITOR.name -> {
