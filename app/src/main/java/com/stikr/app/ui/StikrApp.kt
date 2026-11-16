@@ -3,6 +3,7 @@ package com.stikr.app.ui
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
@@ -76,16 +77,6 @@ fun StikrApp(
     val openSharedPack = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(viewModel::importSharedPack)
     }
-    LaunchedEffect(Unit) {
-        val incoming = (context as? Activity)?.intent
-        if (incoming?.action == Intent.ACTION_VIEW || incoming?.action == Intent.ACTION_SEND) {
-            val uri = incoming.data ?: incoming.getParcelableExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)
-            if (uri != null) {
-                runCatching { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-                viewModel.importSharedPack(uri)
-            }
-        }
-    }
     val packs by viewModel.packs.collectAsStateWithLifecycle()
     val editor by viewModel.editor.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
@@ -151,13 +142,40 @@ fun StikrApp(
         singleEditing = false
     }
 
-    fun makeSticker() {
+    fun makeSticker(initialPhoto: Uri? = null) {
         bulkEditing = false
         viewModel.startSingleSticker { id ->
             packId = id
             singleEditing = true
             savingToNewPack = false
             screen = Screen.EDITOR.name
+            if (initialPhoto != null) viewModel.loadImage(initialPhoto)
+        }
+    }
+
+    // A photo shared from another app lands directly in the editor; zips still
+    // go through the pack importer. Both run once per activity intake.
+    LaunchedEffect(Unit) {
+        val incoming = (context as? Activity)?.intent
+        val sharedPhoto = SharedImageIntake.imageUri(incoming)
+        if (sharedPhoto != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    sharedPhoto, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+            makeSticker(sharedPhoto)
+        } else if (SharedImageIntake.isPackShare(incoming)) {
+            val uri = incoming?.data
+                ?: incoming?.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            if (uri != null) {
+                runCatching {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                }
+                viewModel.importSharedPack(uri)
+            }
         }
     }
 
