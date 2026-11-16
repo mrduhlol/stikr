@@ -17,6 +17,7 @@
 ## Features
 
 - Create individual stickers or turn multiple photos into packs.
+- Share a photo to stikr from any app to open it straight in the editor.
 - Remove backgrounds, adjust outlines, and add text with fonts and colours.
 - Personalise pack covers with a photo or styled text.
 - Add packs to WhatsApp or WhatsApp Business, or share stickers individually.
