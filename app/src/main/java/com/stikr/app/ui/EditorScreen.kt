@@ -93,6 +93,8 @@ fun EditorScreen(
     onBack: () -> Unit,
     onSaveAndExport: (() -> Unit)? = null,
     bulkEdit: Boolean = false,
+    recentCaptions: List<String> = emptyList(),
+    onPickCaption: (String) -> Unit = {},
 ) {
     var selectedText by rememberSaveable { mutableIntStateOf(0) }
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -156,7 +158,18 @@ fun EditorScreen(
             OutlineCard(state = state, onStyle = onStyle)
             Spacer(Modifier.height(NeoDimens.gap + NeoDimens.shadow / 2))
 
-            StickerTextPanel(state.style, state.source != null && !state.saving, selectedText, { selectedText = it }, onStyle)
+            StickerTextPanel(
+                state.style, state.source != null && !state.saving, selectedText, { selectedText = it }, onStyle,
+                recentCaptions = recentCaptions,
+                onPickCaption = { caption ->
+                    val layer = state.style.textLayer(selectedText)
+                    onStyle(state.style.withTextLayer(
+                        selectedText,
+                        layer.copy(caption = caption, captionX = layer.captionX ?: .5f, captionY = layer.captionY ?: .78f),
+                    ))
+                    onPickCaption(caption)
+                },
+            )
             Spacer(Modifier.height(32.dp))
         }
     }
