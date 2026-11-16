@@ -39,7 +39,7 @@ class PrivacyScreenTest : ScreenRenderHarness() {
         var back = 0
         compose.setContent { StikrTheme { PrivacyScreen(onBack = { back++ }) } }
         compose.onNodeWithText("Nothing leaves your phone", substring = true).assertIsDisplayed()
-        compose.onNodeWithText("Back", substring = true, ignoreCase = true).performClick()
+        compose.onNodeWithText("Back", ignoreCase = true).performClick()
         assertEquals(1, back)
     }
 }
