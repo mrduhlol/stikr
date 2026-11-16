@@ -10,6 +10,15 @@ import android.os.Build
  * to the sticker editor.
  */
 object SharedImageIntake {
+    /** Pack backups arrive as zips; photos must never be handed to the importer. */
+    fun isPackShare(intent: Intent?): Boolean {
+        val action = intent?.action ?: return false
+        if (action == Intent.ACTION_VIEW) return true
+        if (action != Intent.ACTION_SEND) return false
+        val type = intent.type ?: return false
+        return !type.startsWith("image/")
+    }
+
     fun imageUri(intent: Intent?): Uri? {
         if (intent?.action != Intent.ACTION_SEND) return null
         val type = intent.type ?: return null
