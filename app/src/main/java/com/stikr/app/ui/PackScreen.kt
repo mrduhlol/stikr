@@ -30,7 +30,6 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Share
@@ -522,7 +521,7 @@ private fun StickerSheet(
             NeoOutlinedButton(
                 text = "Duplicate",
                 onClick = onDuplicate,
-                icon = Icons.Default.ContentCopy,
+                icon = Icons.Default.Add,
                 shadow = NeoDimens.shadowSmall,
                 contentPadding = PaddingValues(vertical = 14.dp),
                 modifier = Modifier.weight(1f),
