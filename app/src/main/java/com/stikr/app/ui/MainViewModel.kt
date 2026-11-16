@@ -285,6 +285,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun duplicateSticker(packId: String, fileName: String) {
+        viewModelScope.launch {
+            val updated = storage { repo.duplicateSticker(packId, fileName) }
+            if (updated == null) notify("Couldn't duplicate this sticker")
+            else {
+                loadPacks()
+                notify("Sticker duplicated")
+            }
+        }
+    }
+
     fun renamePack(packId: String, name: String) {
         viewModelScope.launch {
             if (storage { repo.renamePack(packId, name) } == null) notify("Couldn't rename the pack")
